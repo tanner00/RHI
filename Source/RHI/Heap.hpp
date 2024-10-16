@@ -3,8 +3,8 @@
 #include "GraphicsContext.hpp"
 #include "Common.hpp"
 
-#include "Base.hpp"
-#include "NoCopy.hpp"
+#include "Luft/Base.hpp"
+#include "Luft/NoCopy.hpp"
 
 enum class GpuHeapType
 {

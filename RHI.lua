@@ -6,7 +6,11 @@ project "RHI"
 	SetConfigurationSettings()
 	UseWindowsSettings()
 
-	includedirs { "Source" }
-	files { "Source/**.cpp", "Source/**.hpp" }
+	includedirs {
+		"Source",
+		"../Luft/Source",
+		"../ThirdParty",
+	}
+	files { "Source/RHI/**.cpp", "Source/RHI/**.hpp" }
 
 	filter {}

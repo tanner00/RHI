@@ -1,7 +1,8 @@
 #include "Heap.hpp"
 #include "BarrierConversion.hpp"
 #include "GpuDevice.hpp"
-#include "Math.hpp"
+
+#include "Luft/Math.hpp"
 
 #include "D3D12/d3d12.h"
 

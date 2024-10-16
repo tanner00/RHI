@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Base.hpp"
-#include "Error.hpp"
-#include "HashTable.hpp"
-#include "Math.hpp"
+#include "Luft/Base.hpp"
+#include "Luft/Error.hpp"
+#include "Luft/HashTable.hpp"
+#include "Luft/Math.hpp"
 
 #define UINT uint32
 #include "D3D12/dxgiformat.h"

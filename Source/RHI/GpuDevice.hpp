@@ -4,9 +4,9 @@
 #include "GraphicsContext.hpp"
 #include "Heap.hpp"
 
-#include "Array.hpp"
-#include "Base.hpp"
-#include "NoCopy.hpp"
+#include "Luft/Array.hpp"
+#include "Luft/Base.hpp"
+#include "Luft/NoCopy.hpp"
 
 #include "D3D12/d3d12.h"
 
