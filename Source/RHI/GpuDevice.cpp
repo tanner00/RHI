@@ -1,6 +1,11 @@
 #include "GpuDevice.hpp"
 #include "Common.hpp"
 
+#pragma comment(lib, "d3d12")
+#pragma comment(lib, "dxgi")
+#pragma comment(lib, "dxguid")
+#pragma comment(lib, "dxcompiler")
+
 #include "D3D12/d3d12.h"
 #include "dxc/d3d12shader.h"
 #include "dxc/dxcapi.h"
