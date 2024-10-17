@@ -320,7 +320,7 @@ TextureHandle GpuDevice::CreateTexture(StringView name, BarrierLayout initialLay
 	}
 	else
 	{
-		texture.Resource = DefaultHeap.AllocateTexture(handle.GetWidth(), handle.GetHeight(), handle, initialLayout, name);
+		texture.Resource = DefaultHeap.AllocateTexture(handle, initialLayout, name);
 	}
 	Textures.Add(handle.Get(), Move(texture));
 	return handle;
@@ -665,21 +665,38 @@ void GpuDevice::Write(const TextureHandle& handle, const void* data)
 {
 	CHECK(handle.GetType() == TextureType::Rectangle);
 
-	const usize rowStride = handle.GetRowStride();
-	const usize totalSize = rowStride * handle.GetHeight();
-	const BufferResource resource = UploadHeap.AllocateBuffer(totalSize, "Upload [Texture]"_view);
+	const D3D12_RESOURCE_DESC1 textureDescriptor =
+	{
+		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+		.Width = handle.GetWidth(),
+		.Height = handle.GetHeight(),
+		.DepthOrArraySize = static_cast<uint16>(handle.GetCount()),
+		.MipLevels = 1,
+		.Format = ToD3D12(handle.GetFormat()),
+		.SampleDesc = DefaultSampleDescriptor,
+		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+		.Flags = D3D12_RESOURCE_FLAG_NONE,
+		.SamplerFeedbackMipRegion = {},
+	};
+	constexpr uint32 singleResource = 1;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+	uint32 rowCount;
+	uint64 rowSize;
+	uint64 totalSize;
+	Device->GetCopyableFootprints1(&textureDescriptor, 0, singleResource, 0, &layout, &rowCount, &rowSize, &totalSize);
 
-	const usize textureWidth = handle.GetWidth() * handle.GetComponentCount();
+	const BufferResource resource = UploadHeap.AllocateBuffer(totalSize, "Upload [Texture]"_view);
 
 	void* mapped = nullptr;
 	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
-	for (usize row = 0; row < handle.GetHeight(); ++row)
+	for (usize row = 0; row < rowCount; ++row)
 	{
 		Platform::MemoryCopy
 		(
-			static_cast<uint8*>(mapped) + row * rowStride,
-			static_cast<const uint8*>(data) + row * textureWidth,
-			textureWidth
+			static_cast<uint8*>(mapped) + row * layout.Footprint.RowPitch,
+			static_cast<const uint8*>(data) + row * rowSize,
+			rowSize
 		);
 	}
 	constexpr const D3D12_RANGE* writeEverything = nullptr;
@@ -693,27 +710,52 @@ void GpuDevice::WriteCubemap(const TextureHandle& handle, const Array<uint8*>& f
 	CHECK(handle.GetType() == TextureType::Cubemap);
 	CHECK(faces.GetLength() == 6);
 
-	const usize rowStride = handle.GetRowStride();
-	const usize textureStride = rowStride * handle.GetHeight();
-	const usize totalSize = textureStride * handle.GetCount();
-	const BufferResource resource = UploadHeap.AllocateBuffer(totalSize, "Upload [Cubemap Texture]"_view);
+	usize totalSize = 0;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layouts[6];
+	usize subresourceSizes[6];
+	uint32 rowCounts[6];
+	usize rowSizes[6];
 
-	const usize textureWidth = handle.GetWidth() * handle.GetComponentCount();
+	for (usize subresourceIndex = 0; subresourceIndex < handle.GetCount(); ++subresourceIndex)
+	{
+		const D3D12_RESOURCE_DESC1 textureDescriptor =
+		{
+			.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+			.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+			.Width = handle.GetWidth(),
+			.Height = handle.GetHeight(),
+			.DepthOrArraySize = static_cast<uint16>(handle.GetCount()),
+			.MipLevels = 1,
+			.Format = ToD3D12(handle.GetFormat()),
+			.SampleDesc = DefaultSampleDescriptor,
+			.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+			.Flags = D3D12_RESOURCE_FLAG_NONE,
+			.SamplerFeedbackMipRegion = {},
+		};
+		constexpr uint32 singleResource = 1;
+		Device->GetCopyableFootprints1(&textureDescriptor, static_cast<uint32>(subresourceIndex), singleResource, 0,
+									   &layouts[subresourceIndex], &rowCounts[subresourceIndex], &rowSizes[subresourceIndex], &subresourceSizes[subresourceIndex]);
+
+		totalSize += subresourceSizes[subresourceIndex];
+	}
+	const BufferResource resource = UploadHeap.AllocateBuffer(totalSize, "Upload [Cubemap Texture]"_view);
 
 	void* mapped = nullptr;
 	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
-	for (usize count = 0; count < handle.GetCount(); ++count)
+
+	for (usize subresourceIndex = 0; subresourceIndex < handle.GetCount(); ++subresourceIndex)
 	{
-		for (usize row = 0; row < handle.GetHeight(); ++row)
+		for (usize row = 0; row < rowCounts[subresourceIndex]; ++row)
 		{
 			Platform::MemoryCopy
 			(
-				static_cast<uint8*>(mapped) + count * textureStride + row * rowStride,
-				static_cast<const uint8*>(faces[count]) + row * textureWidth,
-				textureWidth
+				static_cast<uint8*>(mapped) + subresourceIndex * subresourceSizes[subresourceIndex] + row * layouts[subresourceIndex].Footprint.RowPitch,
+				static_cast<const uint8*>(faces[subresourceIndex]) + row * rowSizes[subresourceIndex],
+				rowSizes[subresourceIndex]
 			);
 		}
 	}
+
 	constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
 
@@ -734,22 +776,31 @@ void GpuDevice::Submit(const GraphicsContext& context)
 
 			for (usize subresourceIndex = 0; subresourceIndex < destination.GetCount(); ++subresourceIndex)
 			{
+				const D3D12_RESOURCE_DESC1 textureDescriptor =
+				{
+					.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+					.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+					.Width = destination.GetWidth(),
+					.Height = destination.GetHeight(),
+					.DepthOrArraySize = static_cast<uint16>(destination.GetCount()),
+					.MipLevels = 1,
+					.Format = ToD3D12(destination.GetFormat()),
+					.SampleDesc = DefaultSampleDescriptor,
+					.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+					.Flags = D3D12_RESOURCE_FLAG_NONE,
+					.SamplerFeedbackMipRegion = {},
+				};
+				constexpr uint32 singleResource = 1;
+				D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+				uint32 rowCount;
+				Device->GetCopyableFootprints1(&textureDescriptor, static_cast<uint32>(subresourceIndex), singleResource, 0,
+											   &layout, &rowCount, nullptr, nullptr);
+
 				const D3D12_TEXTURE_COPY_LOCATION sourceLocation =
 				{
 					.pResource = source,
 					.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
-					.PlacedFootprint =
-					{
-						.Offset = subresourceIndex * destination.GetHeight() * destination.GetRowStride(),
-						.Footprint =
-						{
-							.Format = ToD3D12(destination.GetFormat()),
-							.Width = destination.GetWidth(),
-							.Height = destination.GetHeight(),
-							.Depth = 1,
-							.RowPitch = static_cast<uint32>(destination.GetRowStride())
-						},
-					},
+					.PlacedFootprint = layout,
 				};
 				const D3D12_TEXTURE_COPY_LOCATION destinationLocation =
 				{

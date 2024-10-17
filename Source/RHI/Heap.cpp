@@ -100,7 +100,7 @@ BufferResource GpuHeap::AllocateBuffer(usize size, StringView name)
 	return resource;
 }
 
-TextureResource GpuHeap::AllocateTexture(usize width, usize height, const TextureHandle& handle, BarrierLayout initialLayout, StringView name)
+TextureResource GpuHeap::AllocateTexture(const TextureHandle& handle, BarrierLayout initialLayout, StringView name)
 {
 	const D3D12_RESOURCE_FLAGS renderTargetFlag = handle.IsRenderTarget() ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
 	const D3D12_RESOURCE_FLAGS depthStencilFlag = IsDepthFormat(handle.GetFormat()) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
@@ -110,8 +110,8 @@ TextureResource GpuHeap::AllocateTexture(usize width, usize height, const Textur
 	{
 		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		.Width = width,
-		.Height = static_cast<uint32>(height),
+		.Width = handle.GetWidth(),
+		.Height = handle.GetHeight(),
 		.DepthOrArraySize = static_cast<uint16>(handle.GetCount()),
 		.MipLevels = 1,
 		.Format = ToD3D12(handle.GetFormat()),

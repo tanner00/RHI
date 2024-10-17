@@ -157,6 +157,9 @@ enum class TextureFormat
 	Rgba8,
 	Rgba8Srgb,
 
+	Bc7,
+	Bc7Srgb,
+
 	Depth32,
 	Depth24Stencil8,
 };
@@ -183,13 +186,6 @@ public:
 	bool IsRenderTarget() const { return Description.RenderTarget; }
 
 	usize GetCount() const { return Description.Type == TextureType::Cubemap ? 6 : 1; }
-	usize GetComponentCount() const { return 4; }
-
-	uint64 GetRowStride() const
-	{
-		static constexpr usize TextureDataPitchAlignment = 256;
-		return NextMultipleOf(Description.Width * GetComponentCount(), TextureDataPitchAlignment);
-	}
 
 private:
 	TextureDescription Description;
@@ -305,6 +301,29 @@ private:
 inline constexpr uint32 FramesInFlight = 2;
 inline constexpr DXGI_SAMPLE_DESC DefaultSampleDescriptor = { 1, 0 };
 
+inline TextureFormat FromD3D12(DXGI_FORMAT format)
+{
+	switch (format)
+	{
+	case DXGI_FORMAT_UNKNOWN:
+		return TextureFormat::None;
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+		return TextureFormat::Rgba8;
+	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+		return TextureFormat::Rgba8Srgb;
+	case DXGI_FORMAT_BC7_UNORM:
+		return TextureFormat::Bc7;
+	case DXGI_FORMAT_BC7_UNORM_SRGB:
+		return TextureFormat::Bc7Srgb;
+	case DXGI_FORMAT_D24_UNORM_S8_UINT:
+		return TextureFormat::Depth24Stencil8;
+	case DXGI_FORMAT_D32_FLOAT:
+		return TextureFormat::Depth32;
+	}
+	CHECK(false);
+	return TextureFormat::None;
+}
+
 inline DXGI_FORMAT ToD3D12(TextureFormat format)
 {
 	switch (format)
@@ -315,6 +334,10 @@ inline DXGI_FORMAT ToD3D12(TextureFormat format)
 		return DXGI_FORMAT_R8G8B8A8_UNORM;
 	case TextureFormat::Rgba8Srgb:
 		return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	case TextureFormat::Bc7:
+		return DXGI_FORMAT_BC7_UNORM;
+	case TextureFormat::Bc7Srgb:
+		return DXGI_FORMAT_BC7_UNORM_SRGB;
 	case TextureFormat::Depth24Stencil8:
 		return DXGI_FORMAT_D24_UNORM_S8_UINT;
 	case TextureFormat::Depth32:
