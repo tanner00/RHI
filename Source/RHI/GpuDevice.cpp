@@ -20,8 +20,6 @@ struct RootParameter
 
 namespace Dxc
 {
-static constexpr usize BindingBucketCount = 4;
-
 static void Init();
 static void Shutdown();
 
@@ -373,9 +371,11 @@ ShaderHandle GpuDevice::CreateShader(const ShaderDescription& description)
 
 GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description)
 {
+	static constexpr usize bindingBucketCount = 4;
+
 	const GraphicsPipelineHandle handle = { HandleIndex++, description };
 
-	HashTable<String, usize> parameters(Dxc::BindingBucketCount);
+	HashTable<String, usize> parameters(bindingBucketCount);
 	ID3D12RootSignature* rootSignature = nullptr;
 	ID3D12PipelineState* pipelineState = nullptr;
 
@@ -396,7 +396,7 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 	Array<D3D12_INPUT_ELEMENT_DESC> inputElements;
 	Dxc::ReflectInputElements(vertex->Reflection, inputElements);
 
-	HashTable<String, RootParameter> rootParameters(Dxc::BindingBucketCount);
+	HashTable<String, RootParameter> rootParameters(bindingBucketCount);
 	Dxc::ReflectRootParameters(vertex->Reflection, rootParameters);
 	if (usesPixelShader)
 	{
