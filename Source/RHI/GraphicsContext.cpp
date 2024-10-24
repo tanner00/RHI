@@ -140,6 +140,8 @@ void GraphicsContext::SetGraphicsPipeline(GraphicsPipelineHandle& pipeline)
 
 void GraphicsContext::SetVertexBuffer(const BufferHandle& handle, usize slot) const
 {
+	CHECK(handle.GetType() == BufferType::VertexBuffer);
+
 	const BufferResource resource = Device->Buffers[handle.Get()].GetBufferResource(Device->GetFrameIndex(), handle.IsStream());
 
 	const D3D12_VERTEX_BUFFER_VIEW view =
@@ -151,9 +153,11 @@ void GraphicsContext::SetVertexBuffer(const BufferHandle& handle, usize slot) co
 	CommandList->IASetVertexBuffers(static_cast<uint32>(slot), 1, &view);
 }
 
-void GraphicsContext::SetBuffer(StringView name, const BufferHandle& handle, usize offsetIndex) const
+void GraphicsContext::SetConstantBuffer(StringView name, const BufferHandle& handle, usize offsetIndex) const
 {
 	CHECK(CurrentGraphicsPipeline);
+
+	CHECK(handle.GetType() == BufferType::ConstantBuffer);
 
 	const GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[CurrentGraphicsPipeline->Get()];
 	CHECK(currentPipeline.Parameters.Contains(name));
@@ -165,6 +169,25 @@ void GraphicsContext::SetBuffer(StringView name, const BufferHandle& handle, usi
 	const usize offset = offsetIndex * handle.GetStride();
 	const usize gpuAddress = Device->Buffers[handle.Get()].GetBufferResource(Device->GetFrameIndex(), handle.IsStream())->GetGPUVirtualAddress() + offset;
 	CommandList->SetGraphicsRootConstantBufferView
+	(
+		static_cast<uint32>(currentPipeline.Parameters[name]),
+		D3D12_GPU_VIRTUAL_ADDRESS { gpuAddress }
+	);
+}
+
+void GraphicsContext::SetBuffer(StringView name, const BufferHandle& handle) const
+{
+	CHECK(CurrentGraphicsPipeline);
+
+	CHECK(handle.GetType() == BufferType::StructuredBuffer);
+
+	const GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[CurrentGraphicsPipeline->Get()];
+	CHECK(currentPipeline.Parameters.Contains(name));
+
+	Device->EnsureShaderResourceDescriptor(handle);
+
+	const usize gpuAddress = Device->Buffers[handle.Get()].GetBufferResource(Device->GetFrameIndex(), handle.IsStream())->GetGPUVirtualAddress();
+	CommandList->SetGraphicsRootShaderResourceView
 	(
 		static_cast<uint32>(currentPipeline.Parameters[name]),
 		D3D12_GPU_VIRTUAL_ADDRESS { gpuAddress }

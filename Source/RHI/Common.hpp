@@ -110,6 +110,7 @@ enum class BufferType
 {
 	ConstantBuffer,
 	VertexBuffer,
+	StructuredBuffer,
 };
 
 enum class BufferUsage
@@ -135,6 +136,8 @@ public:
 	usize GetSize() const { return Description.Size; }
 	usize GetStride() const { return Description.Stride; }
 	usize GetCount() const { return Description.Size / (Description.Stride ? Description.Stride : 1); }
+
+	BufferType GetType() const { return Description.Type; }
 
 	bool IsStatic() const { return Description.Usage == BufferUsage::Static; }
 	bool IsDynamic() const { return Description.Usage == BufferUsage::Dynamic; }

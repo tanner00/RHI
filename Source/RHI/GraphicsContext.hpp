@@ -110,7 +110,9 @@ public:
 
 	void SetVertexBuffer(const BufferHandle& handle, usize slot) const;
 
-	void SetBuffer(StringView name, const BufferHandle& handle, usize offsetIndex = 0) const;
+	void SetConstantBuffer(StringView name, const BufferHandle& handle, usize offsetIndex = 0) const;
+	void SetBuffer(StringView name, const BufferHandle& handle) const;
+
 	void SetTexture(StringView name, const TextureHandle& handle) const;
 	void SetSampler(StringView name, const SamplerHandle& handle) const;
 

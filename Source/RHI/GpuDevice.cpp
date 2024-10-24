@@ -924,6 +924,8 @@ void GpuDevice::AddPendingDelete(IUnknown* pendingDelete)
 
 void GpuDevice::EnsureConstantBufferDescriptor(const BufferHandle& handle)
 {
+	CHECK(handle.GetType() == BufferType::ConstantBuffer);
+
 	constexpr DescriptorType descriptorType = DescriptorType::ConstantBuffer;
 
 	Buffer& buffer = Buffers[handle.Get()];
@@ -950,6 +952,48 @@ void GpuDevice::EnsureConstantBufferDescriptor(const BufferHandle& handle)
 			Device->CreateConstantBufferView
 			(
 				&constantBufferViewDescriptor,
+				D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.GetCpuDescriptor(heapIndex) }
+			);
+		}
+	}
+}
+
+void GpuDevice::EnsureShaderResourceDescriptor(const BufferHandle& handle)
+{
+	CHECK(handle.GetType() == BufferType::StructuredBuffer);
+
+	constexpr DescriptorType descriptorType = DescriptorType::ShaderResource;
+
+	Buffer& buffer = Buffers[handle.Get()];
+	if (buffer.HeapIndices[0][static_cast<usize>(descriptorType)])
+	{
+		return;
+	}
+
+	for (usize i = 0; i < ARRAY_COUNT(buffer.Resources); ++i)
+	{
+		if (buffer.Resources[i])
+		{
+			const usize heapIndex = ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.AllocateIndex();
+			buffer.HeapIndices[i][static_cast<usize>(descriptorType)] = heapIndex;
+
+			D3D12_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDescriptor =
+			{
+				.Format = DXGI_FORMAT_UNKNOWN,
+				.ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
+				.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				.Buffer =
+				{
+					.FirstElement = 0,
+					.NumElements = static_cast<uint32>(handle.GetCount()),
+					.StructureByteStride = static_cast<uint32>(handle.GetStride()),
+					.Flags = D3D12_BUFFER_SRV_FLAG_NONE,
+				},
+			};
+			Device->CreateShaderResourceView
+			(
+				buffer.GetBufferResource(i, handle.IsStream()),
+				&shaderResourceViewDescriptor,
 				D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.GetCpuDescriptor(heapIndex) }
 			);
 		}
@@ -1274,6 +1318,20 @@ static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 			parameter.Parameter = D3D12_ROOT_PARAMETER1
 			{
 				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV,
+				.Descriptor =
+				{
+					.ShaderRegister = resourceDescriptor.BindPoint,
+					.RegisterSpace = resourceDescriptor.Space,
+					.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
+				},
+				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+			};
+		}
+		else if (resourceDescriptor.Type == D3D_SIT_STRUCTURED)
+		{
+			parameter.Parameter = D3D12_ROOT_PARAMETER1
+			{
+				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
 				.Descriptor =
 				{
 					.ShaderRegister = resourceDescriptor.BindPoint,

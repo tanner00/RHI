@@ -117,6 +117,8 @@ private:
 	void AddPendingDelete(IUnknown* pendingDelete);
 
 	void EnsureConstantBufferDescriptor(const BufferHandle& handle);
+	void EnsureShaderResourceDescriptor(const BufferHandle& handle);
+
 	void EnsureShaderResourceDescriptor(const TextureHandle& handle);
 	void EnsureRenderTargetDescriptor(const TextureHandle& handle);
 	void EnsureDepthStencilDescriptor(const TextureHandle& handle);
