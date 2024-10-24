@@ -363,7 +363,7 @@ class GraphicsContext;
 struct ID3D12CommandAllocator;
 struct ID3D12CommandQueue;
 struct ID3D12DescriptorHeap;
-struct ID3D12Device10;
+struct ID3D12Device11;
 struct ID3D12GraphicsCommandList10;
 struct ID3D12Fence1;
 struct ID3D12Heap1;
