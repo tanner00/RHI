@@ -282,6 +282,7 @@ struct GraphicsPipelineDescription
 	ShaderStages Stages;
 	TextureFormat RenderTargetFormat;
 	TextureFormat DepthFormat;
+	bool AlphaBlend;
 };
 
 class GraphicsPipelineHandle final : public RHI_HANDLE(GraphicsPipeline)

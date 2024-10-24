@@ -447,12 +447,12 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 	(void)name;
 #endif
 
-	constexpr D3D12_RENDER_TARGET_BLEND_DESC defaultBlendDescriptor =
+	const D3D12_RENDER_TARGET_BLEND_DESC defaultBlendDescriptor =
 	{
-		.BlendEnable = false,
+		.BlendEnable = description.AlphaBlend,
 		.LogicOpEnable = false,
-		.SrcBlend = D3D12_BLEND_ONE,
-		.DestBlend = D3D12_BLEND_ZERO,
+		.SrcBlend = description.AlphaBlend ? D3D12_BLEND_SRC_ALPHA : D3D12_BLEND_ONE,
+		.DestBlend = description.AlphaBlend ? D3D12_BLEND_INV_SRC_ALPHA : D3D12_BLEND_ZERO,
 		.BlendOp = D3D12_BLEND_OP_ADD,
 		.SrcBlendAlpha = D3D12_BLEND_ONE,
 		.DestBlendAlpha = D3D12_BLEND_ZERO,
@@ -480,13 +480,6 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 			.IndependentBlendEnable = false,
 			.RenderTarget =
 			{
-				defaultBlendDescriptor,
-				defaultBlendDescriptor,
-				defaultBlendDescriptor,
-				defaultBlendDescriptor,
-				defaultBlendDescriptor,
-				defaultBlendDescriptor,
-				defaultBlendDescriptor,
 				defaultBlendDescriptor,
 			},
 		},
