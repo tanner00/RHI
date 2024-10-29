@@ -9,7 +9,7 @@ GraphicsContext::GraphicsContext(GpuDevice* device)
 	: CurrentGraphicsPipeline(nullptr)
 	, Device(device)
 {
-	constexpr D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	static constexpr D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	for (ID3D12CommandAllocator*& allocator : CommandAllocators)
 	{
 		CHECK_RESULT(Device->GetDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)));
@@ -275,8 +275,8 @@ void GraphicsContext::BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair
 
 void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, BarrierPair<BarrierLayout> layout, const TextureHandle& texture) const
 {
-	constexpr D3D12_TEXTURE_BARRIER_FLAGS noDiscard = D3D12_TEXTURE_BARRIER_FLAG_NONE;
-	constexpr D3D12_BARRIER_SUBRESOURCE_RANGE entireRange =
+	static constexpr D3D12_TEXTURE_BARRIER_FLAGS noDiscard = D3D12_TEXTURE_BARRIER_FLAG_NONE;
+	static constexpr D3D12_BARRIER_SUBRESOURCE_RANGE entireRange =
 	{
 		.IndexOrFirstMipLevel = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
 		.NumMipLevels = 0,

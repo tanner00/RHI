@@ -3,7 +3,6 @@
 #include "Luft/Base.hpp"
 #include "Luft/Error.hpp"
 #include "Luft/HashTable.hpp"
-#include "Luft/Math.hpp"
 
 #define UINT uint32
 #include "D3D12/dxgiformat.h"
@@ -266,7 +265,7 @@ class ShaderStages : public HashTable<ShaderStage, ShaderHandle>
 {
 public:
 	ShaderStages()
-		: HashTable(1)
+		: HashTable(1, &GlobalAllocator::Get())
 	{
 	}
 

@@ -94,11 +94,11 @@ static constexpr usize ResourceTableSize = 32;
 GpuDevice::GpuDevice(const Platform::Window* window)
 	: FrameFenceValues()
 	, HandleIndex(1)
-	, Buffers(ResourceTableSize)
-	, Textures(ResourceTableSize)
-	, Samplers(ResourceTableSize)
-	, Shaders(ResourceTableSize)
-	, GraphicsPipelines(ResourceTableSize)
+	, Buffers(ResourceTableSize, &GlobalAllocator::Get())
+	, Textures(ResourceTableSize, &GlobalAllocator::Get())
+	, Samplers(ResourceTableSize, &GlobalAllocator::Get())
+	, Shaders(ResourceTableSize, &GlobalAllocator::Get())
+	, GraphicsPipelines(ResourceTableSize, &GlobalAllocator::Get())
 {
 	Dxc::Init();
 
@@ -157,7 +157,7 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 	SAFE_RELEASE(d3d12InfoQueue);
 #endif
 
-	constexpr D3D12_COMMAND_QUEUE_DESC graphicsQueueDescriptor =
+	static constexpr D3D12_COMMAND_QUEUE_DESC graphicsQueueDescriptor =
 	{
 		.Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
 		.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
@@ -167,7 +167,7 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 	CHECK_RESULT(Device->CreateCommandQueue(&graphicsQueueDescriptor, IID_PPV_ARGS(&GraphicsQueue)));
 
 	const HWND windowHandle = static_cast<HWND>(window->Handle);
-	constexpr DXGI_SWAP_CHAIN_DESC1 swapChainDescriptor =
+	static constexpr DXGI_SWAP_CHAIN_DESC1 swapChainDescriptor =
 	{
 		.Width = 0,
 		.Height = 0,
@@ -181,7 +181,7 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 		.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
 		.Flags = 0,
 	};
-	const constexpr DXGI_SWAP_CHAIN_FULLSCREEN_DESC* fullScreenSwapChainDescriptor = nullptr;
+	static const constexpr DXGI_SWAP_CHAIN_FULLSCREEN_DESC* fullScreenSwapChainDescriptor = nullptr;
 	IDXGISwapChain1* swapChain = nullptr;
 	CHECK_RESULT(dxgiFactory->CreateSwapChainForHwnd(GraphicsQueue, windowHandle, &swapChainDescriptor, fullScreenSwapChainDescriptor, nullptr, &swapChain));
 	CHECK_RESULT(swapChain->QueryInterface(IID_PPV_ARGS(&SwapChain)));
@@ -214,7 +214,7 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 	CHECK_RESULT(Device->CreateFence(FrameFenceValues[0], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&FrameFence)));
 	++FrameFenceValues[0];
 
-	constexpr D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	static constexpr D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	for (ID3D12CommandAllocator*& allocator : UploadCommandAllocators)
 	{
 		CHECK_RESULT(Device->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)));
@@ -303,7 +303,7 @@ BufferHandle GpuDevice::CreateBuffer(StringView name, const void* staticData, co
 	void* mapped = nullptr;
 	CHECK_RESULT(uploadResource->Map(0, nullptr, &mapped));
 	Platform::MemoryCopy(mapped, staticData, handle.GetSize());
-	constexpr const D3D12_RANGE* writeEverything = nullptr;
+	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	uploadResource->Unmap(0, writeEverything);
 
 	return handle;
@@ -442,7 +442,7 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 	CHECK_RESULT(Device->CreateRootSignature(0, serializedRootSignature->GetBufferPointer(), serializedRootSignature->GetBufferSize(),
 											 IID_PPV_ARGS(&rootSignature)));
 #if DEBUG
-	CHECK_RESULT(rootSignature->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.Length), name.Buffer));
+	CHECK_RESULT(rootSignature->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
 #else
 	(void)name;
 #endif
@@ -541,7 +541,7 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 	};
 	CHECK_RESULT(Device->CreateGraphicsPipelineState(&graphicsPipelineStateDescriptor, IID_PPV_ARGS(&pipelineState)));
 #if DEBUG
-	CHECK_RESULT(pipelineState->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.Length), name.Buffer));
+	CHECK_RESULT(pipelineState->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
 #else
 	(void)name;
 #endif
@@ -650,7 +650,7 @@ void GpuDevice::Write(const BufferHandle& handle, const void* data)
 	void* mapped = nullptr;
 	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
 	Platform::MemoryCopy(mapped, data, handle.GetSize());
-	constexpr const D3D12_RANGE* writeEverything = nullptr;
+	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
 }
 
@@ -672,7 +672,7 @@ void GpuDevice::Write(const TextureHandle& handle, const void* data)
 		.Flags = D3D12_RESOURCE_FLAG_NONE,
 		.SamplerFeedbackMipRegion = {},
 	};
-	constexpr uint32 singleResource = 1;
+	static constexpr uint32 singleResource = 1;
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
 	uint32 rowCount;
 	uint64 rowSize;
@@ -692,7 +692,7 @@ void GpuDevice::Write(const TextureHandle& handle, const void* data)
 			rowSize
 		);
 	}
-	constexpr const D3D12_RANGE* writeEverything = nullptr;
+	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
 
 	PendingTextureUploads.Add({ resource, handle });
@@ -725,7 +725,7 @@ void GpuDevice::WriteCubemap(const TextureHandle& handle, const Array<uint8*>& f
 			.Flags = D3D12_RESOURCE_FLAG_NONE,
 			.SamplerFeedbackMipRegion = {},
 		};
-		constexpr uint32 singleResource = 1;
+		static constexpr uint32 singleResource = 1;
 		Device->GetCopyableFootprints1(&textureDescriptor, static_cast<uint32>(subresourceIndex), singleResource, 0,
 									   &layouts[subresourceIndex], &rowCounts[subresourceIndex], &rowSizes[subresourceIndex], &subresourceSizes[subresourceIndex]);
 
@@ -749,7 +749,7 @@ void GpuDevice::WriteCubemap(const TextureHandle& handle, const Array<uint8*>& f
 		}
 	}
 
-	constexpr const D3D12_RANGE* writeEverything = nullptr;
+	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
 
 	PendingTextureUploads.Add({ resource, handle });
@@ -783,7 +783,7 @@ void GpuDevice::Submit(const GraphicsContext& context)
 					.Flags = D3D12_RESOURCE_FLAG_NONE,
 					.SamplerFeedbackMipRegion = {},
 				};
-				constexpr uint32 singleResource = 1;
+				static constexpr uint32 singleResource = 1;
 				D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
 				uint32 rowCount;
 				Device->GetCopyableFootprints1(&textureDescriptor, static_cast<uint32>(subresourceIndex), singleResource, 0,
@@ -919,7 +919,7 @@ void GpuDevice::EnsureConstantBufferDescriptor(const BufferHandle& handle)
 {
 	CHECK(handle.GetType() == BufferType::ConstantBuffer);
 
-	constexpr DescriptorType descriptorType = DescriptorType::ConstantBuffer;
+	static constexpr DescriptorType descriptorType = DescriptorType::ConstantBuffer;
 
 	Buffer& buffer = Buffers[handle.Get()];
 	if (buffer.HeapIndices[0][static_cast<usize>(descriptorType)])
@@ -955,7 +955,7 @@ void GpuDevice::EnsureShaderResourceDescriptor(const BufferHandle& handle)
 {
 	CHECK(handle.GetType() == BufferType::StructuredBuffer);
 
-	constexpr DescriptorType descriptorType = DescriptorType::ShaderResource;
+	static constexpr DescriptorType descriptorType = DescriptorType::ShaderResource;
 
 	Buffer& buffer = Buffers[handle.Get()];
 	if (buffer.HeapIndices[0][static_cast<usize>(descriptorType)])
@@ -995,7 +995,7 @@ void GpuDevice::EnsureShaderResourceDescriptor(const BufferHandle& handle)
 
 void GpuDevice::EnsureShaderResourceDescriptor(const TextureHandle& handle)
 {
-	constexpr DescriptorType descriptorType = DescriptorType::ShaderResource;
+	static constexpr DescriptorType descriptorType = DescriptorType::ShaderResource;
 
 	Texture& texture = Textures[handle.Get()];
 	if (texture.HeapIndices[static_cast<usize>(descriptorType)])
@@ -1052,7 +1052,7 @@ void GpuDevice::EnsureShaderResourceDescriptor(const TextureHandle& handle)
 
 void GpuDevice::EnsureRenderTargetDescriptor(const TextureHandle& handle)
 {
-	constexpr DescriptorType descriptorType = DescriptorType::RenderTarget;
+	static constexpr DescriptorType descriptorType = DescriptorType::RenderTarget;
 
 	Texture& texture = Textures[handle.Get()];
 	if (texture.HeapIndices[static_cast<usize>(descriptorType)])
@@ -1082,7 +1082,7 @@ void GpuDevice::EnsureRenderTargetDescriptor(const TextureHandle& handle)
 
 void GpuDevice::EnsureDepthStencilDescriptor(const TextureHandle& handle)
 {
-	constexpr DescriptorType descriptorType = DescriptorType::DepthStencil;
+	static constexpr DescriptorType descriptorType = DescriptorType::DepthStencil;
 
 	Texture& texture = Textures[handle.Get()];
 	if (texture.HeapIndices[static_cast<usize>(descriptorType)])
@@ -1148,8 +1148,8 @@ Shader CompileShader(ShaderStage stage, StringView filePath)
 	CHECK(Compiler && Utils);
 
 	wchar_t pathBuffer[MAX_PATH];
-	VERIFY(filePath.Length < sizeof(pathBuffer), "File path length limit exceeded!");
-	const errno_t error = mbstowcs_s(nullptr, pathBuffer, reinterpret_cast<const char*>(filePath.Buffer), filePath.Length);
+	VERIFY(filePath.GetLength() < sizeof(pathBuffer), "File path length limit exceeded!");
+	const errno_t error = mbstowcs_s(nullptr, pathBuffer, reinterpret_cast<const char*>(filePath.GetData()), filePath.GetLength());
 	CHECK(error == 0);
 
 	uint32 codePage = DXC_CP_UTF8;
@@ -1302,7 +1302,12 @@ static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 		D3D12_SHADER_INPUT_BIND_DESC resourceDescriptor = {};
 		CHECK_RESULT(shaderReflection->GetResourceBindingDesc(i, &resourceDescriptor));
 
-		String resourceName = { reinterpret_cast<const uint8*>(resourceDescriptor.Name), Platform::StringLength(resourceDescriptor.Name) };
+		const usize resourceNameLength = Platform::StringLength(resourceDescriptor.Name);
+		String resourceName = String { resourceNameLength, &GlobalAllocator::Get() };
+		for (usize j = 0; j < resourceNameLength; ++j)
+		{
+			resourceName.Append(resourceDescriptor.Name[j]);
+		}
 
 		RootParameter parameter;
 

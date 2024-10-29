@@ -86,14 +86,14 @@ BufferResource GpuHeap::AllocateBuffer(usize size, StringView name)
 	const usize newOffset = NextMultipleOf(Offset + size, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT);
 	CHECK(newOffset <= Size);
 
-	constexpr const DXGI_FORMAT* noCastableFormats = nullptr;
+	static constexpr const DXGI_FORMAT* noCastableFormats = nullptr;
 	BufferResource resource = nullptr;
 	CHECK_RESULT(Device->GetDevice()->CreatePlacedResource2(Heap, Offset, &bufferDescriptor, ToD3D12(BarrierLayout::Undefined),
 															nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
 	Offset = newOffset;
 
 #if DEBUG
-	CHECK_RESULT(resource->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.Length), name.Buffer));
+	CHECK_RESULT(resource->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
 #else
 	(void)name;
 #endif
@@ -135,13 +135,13 @@ TextureResource GpuHeap::AllocateTexture(const TextureHandle& handle, BarrierLay
 	CHECK(newOffset <= Size);
 
 	TextureResource resource = nullptr;
-	constexpr const DXGI_FORMAT* noCastableFormats = nullptr;
+	static constexpr const DXGI_FORMAT* noCastableFormats = nullptr;
 	CHECK_RESULT(Device->GetDevice()->CreatePlacedResource2(Heap, Offset, &textureDescriptor, ToD3D12(initialLayout),
 															IsDepthFormat(handle.GetFormat()) ? &depthClear : nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
 	Offset = newOffset;
 
 #if DEBUG
-	CHECK_RESULT(resource->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.Length), name.Buffer));
+	CHECK_RESULT(resource->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
 #else
 	(void)name;
 #endif
