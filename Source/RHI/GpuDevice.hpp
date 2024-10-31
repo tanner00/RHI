@@ -21,15 +21,7 @@ public:
 
 	BufferResource GetOnlyBufferResource() const
 	{
-#if DEBUG
-		usize validResourceCount = 0;
-		for (BufferResource resource : Resources)
-		{
-			if (resource) ++validResourceCount;
-		}
-		CHECK(validResourceCount == 1);
-#endif
-		CHECK(Resources[0]);
+		CHECK(Resources[0] && !Resources[1]);
 		return Resources[0];
 	}
 
