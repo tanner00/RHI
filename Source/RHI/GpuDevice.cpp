@@ -62,18 +62,18 @@ static D3D12_TEXTURE_ADDRESS_MODE ToD3D12(SamplerAddress address)
 	return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 }
 
-static DXGI_FORMAT ToD3D12View(TextureFormat format, DescriptorType type)
+static DXGI_FORMAT ToD3D12View(TextureFormat format, ViewType type)
 {
 	switch (format)
 	{
 	case TextureFormat::Depth24Stencil8:
-		if (type == DescriptorType::ShaderResource)
+		if (type == ViewType::ShaderResource)
 		{
 			return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
 		}
 		break;
 	case TextureFormat::Depth32:
-		if (type == DescriptorType::ShaderResource)
+		if (type == ViewType::ShaderResource)
 		{
 			return DXGI_FORMAT_R32_TYPELESS;
 		}
@@ -131,9 +131,9 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 		 dxgiFactory->EnumAdapterByGpuPreference(adapterIndex, DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE, IID_PPV_ARGS(&adapter)) != DXGI_ERROR_NOT_FOUND;
 		 ++adapterIndex)
 	{
-		DXGI_ADAPTER_DESC3 adapterDescriptor;
-		CHECK_RESULT(adapter->GetDesc3(&adapterDescriptor));
-		if (adapterDescriptor.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)
+		DXGI_ADAPTER_DESC3 adapterDescription;
+		CHECK_RESULT(adapter->GetDesc3(&adapterDescription));
+		if (adapterDescription.Flags & DXGI_ADAPTER_FLAG3_SOFTWARE)
 		{
 			continue;
 		}
@@ -157,23 +157,23 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 	SAFE_RELEASE(d3d12InfoQueue);
 #endif
 
-	static constexpr D3D12_COMMAND_QUEUE_DESC graphicsQueueDescriptor =
+	static constexpr D3D12_COMMAND_QUEUE_DESC graphicsQueueDescription =
 	{
 		.Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
 		.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL,
 		.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
 		.NodeMask = 0,
 	};
-	CHECK_RESULT(Device->CreateCommandQueue(&graphicsQueueDescriptor, IID_PPV_ARGS(&GraphicsQueue)));
+	CHECK_RESULT(Device->CreateCommandQueue(&graphicsQueueDescription, IID_PPV_ARGS(&GraphicsQueue)));
 
 	const HWND windowHandle = static_cast<HWND>(window->Handle);
-	static constexpr DXGI_SWAP_CHAIN_DESC1 swapChainDescriptor =
+	static constexpr DXGI_SWAP_CHAIN_DESC1 swapChainDescription =
 	{
 		.Width = 0,
 		.Height = 0,
 		.Format = SwapChainFormat,
 		.Stereo = false,
-		.SampleDesc = DefaultSampleDescriptor,
+		.SampleDesc = DefaultSampleDescription,
 		.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_BACK_BUFFER,
 		.BufferCount = FramesInFlight,
 		.Scaling = DXGI_SCALING_STRETCH,
@@ -181,9 +181,9 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 		.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED,
 		.Flags = 0,
 	};
-	static const constexpr DXGI_SWAP_CHAIN_FULLSCREEN_DESC* fullScreenSwapChainDescriptor = nullptr;
+	static const constexpr DXGI_SWAP_CHAIN_FULLSCREEN_DESC* fullScreenSwapChainDescription = nullptr;
 	IDXGISwapChain1* swapChain = nullptr;
-	CHECK_RESULT(dxgiFactory->CreateSwapChainForHwnd(GraphicsQueue, windowHandle, &swapChainDescriptor, fullScreenSwapChainDescriptor, nullptr, &swapChain));
+	CHECK_RESULT(dxgiFactory->CreateSwapChainForHwnd(GraphicsQueue, windowHandle, &swapChainDescription, fullScreenSwapChainDescription, nullptr, &swapChain));
 	CHECK_RESULT(swapChain->QueryInterface(IID_PPV_ARGS(&SwapChain)));
 	SAFE_RELEASE(swapChain);
 
@@ -226,11 +226,11 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 		PendingDeletes.Add(Array<IUnknown*> {});
 	}
 
-	ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
-																	 DescriptorHeapType::ConstantBufferShaderResourceUnorderedAccess, true, this);
-	RenderTargetDescriptorHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, DescriptorHeapType::RenderTarget, false, this);
-	DepthStencilDescriptorHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, DescriptorHeapType::DepthStencil, false, this);
-	SamplerDescriptorHeap.Create(D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, DescriptorHeapType::Sampler, true, this);
+	ConstantBufferShaderResourceUnorderedAccessViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
+															   ViewHeapType::ConstantBufferShaderResourceUnorderedAccess, true, this);
+	RenderTargetViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::RenderTarget, false, this);
+	DepthStencilViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::DepthStencil, false, this);
+	SamplerViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, ViewHeapType::Sampler, true, this);
 
 	UploadHeap.Create(MB(512), GpuHeapType::Upload, this);
 	DefaultHeap.Create(MB(512), GpuHeapType::Default, this);
@@ -244,10 +244,10 @@ GpuDevice::~GpuDevice()
 	UploadHeap.Destroy();
 	DefaultHeap.Destroy();
 
-	DepthStencilDescriptorHeap.Destroy();
-	RenderTargetDescriptorHeap.Destroy();
-	SamplerDescriptorHeap.Destroy();
-	ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.Destroy();
+	DepthStencilViewHeap.Destroy();
+	RenderTargetViewHeap.Destroy();
+	SamplerViewHeap.Destroy();
+	ConstantBufferShaderResourceUnorderedAccessViewHeap.Destroy();
 
 	SAFE_RELEASE(UploadCommandList);
 	for (ID3D12CommandAllocator* commandAllocator : UploadCommandAllocators)
@@ -331,10 +331,10 @@ SamplerHandle GpuDevice::CreateSampler(const SamplerDescription& description)
 	const SamplerHandle handle = { HandleIndex++, description };
 	Sampler sampler = {};
 
-	const usize heapIndex = SamplerDescriptorHeap.AllocateIndex();
+	const usize heapIndex = SamplerViewHeap.AllocateIndex();
 	sampler.HeapIndex = heapIndex;
 
-	const D3D12_SAMPLER_DESC2 samplerDescriptor =
+	const D3D12_SAMPLER_DESC2 samplerDescription =
 	{
 		.Filter = ToD3D12(description.Filter),
 		.AddressU = ToD3D12(description.Address),
@@ -354,7 +354,7 @@ SamplerHandle GpuDevice::CreateSampler(const SamplerDescription& description)
 		.MaxLOD = D3D12_FLOAT32_MAX,
 		.Flags = D3D12_SAMPLER_FLAG_NONE,
 	};
-	Device->CreateSampler2(&samplerDescriptor, D3D12_CPU_DESCRIPTOR_HANDLE {SamplerDescriptorHeap.GetCpuDescriptor(heapIndex) });
+	Device->CreateSampler2(&samplerDescription, D3D12_CPU_DESCRIPTOR_HANDLE {SamplerViewHeap.GetCpu(heapIndex) });
 
 	Samplers.Add(handle.Get(), Move(sampler));
 	return handle;
@@ -413,7 +413,7 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 		++rootParameterIndex;
 	}
 
-	const D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescriptor =
+	const D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription =
 	{
 		.Version = D3D_ROOT_SIGNATURE_VERSION_1_1,
 		.Desc_1_1 =
@@ -427,7 +427,7 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 	};
 	ID3DBlob* serializedRootSignature = nullptr;
 	ID3DBlob* errorBlob = nullptr;
-	const HRESULT rootSignatureResult = D3D12SerializeVersionedRootSignature(&rootSignatureDescriptor, &serializedRootSignature, &errorBlob);
+	const HRESULT rootSignatureResult = D3D12SerializeVersionedRootSignature(&rootSignatureDescription, &serializedRootSignature, &errorBlob);
 #if DEBUG
 	if (FAILED(rootSignatureResult) && errorBlob)
 	{
@@ -447,7 +447,7 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 	(void)name;
 #endif
 
-	const D3D12_RENDER_TARGET_BLEND_DESC defaultBlendDescriptor =
+	const D3D12_RENDER_TARGET_BLEND_DESC defaultBlendDescription =
 	{
 		.BlendEnable = description.AlphaBlend,
 		.LogicOpEnable = false,
@@ -460,7 +460,7 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 		.LogicOp = D3D12_LOGIC_OP_NOOP,
 		.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL,
 	};
-	const D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDescriptor =
+	const D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDescription =
 	{
 		.pRootSignature = rootSignature,
 		.VS =
@@ -480,7 +480,7 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 			.IndependentBlendEnable = false,
 			.RenderTarget =
 			{
-				defaultBlendDescriptor,
+				defaultBlendDescription,
 			},
 		},
 		.SampleMask = D3D12_DEFAULT_SAMPLE_MASK,
@@ -534,12 +534,12 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 			ToD3D12(handle.GetRenderTargetFormat()),
 		},
 		.DSVFormat = ToD3D12(handle.GetDepthFormat()),
-		.SampleDesc = DefaultSampleDescriptor,
+		.SampleDesc = DefaultSampleDescription,
 		.NodeMask = 0,
 		.CachedPSO = {},
 		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE,
 	};
-	CHECK_RESULT(Device->CreateGraphicsPipelineState(&graphicsPipelineStateDescriptor, IID_PPV_ARGS(&pipelineState)));
+	CHECK_RESULT(Device->CreateGraphicsPipelineState(&graphicsPipelineStateDescription, IID_PPV_ARGS(&pipelineState)));
 #if DEBUG
 	CHECK_RESULT(pipelineState->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
 #else
@@ -658,7 +658,7 @@ void GpuDevice::Write(const TextureHandle& handle, const void* data)
 {
 	CHECK(handle.GetType() == TextureType::Rectangle);
 
-	const D3D12_RESOURCE_DESC1 textureDescriptor =
+	const D3D12_RESOURCE_DESC1 textureDescription =
 	{
 		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
@@ -667,7 +667,7 @@ void GpuDevice::Write(const TextureHandle& handle, const void* data)
 		.DepthOrArraySize = static_cast<uint16>(handle.GetCount()),
 		.MipLevels = 1,
 		.Format = ToD3D12(handle.GetFormat()),
-		.SampleDesc = DefaultSampleDescriptor,
+		.SampleDesc = DefaultSampleDescription,
 		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
 		.Flags = D3D12_RESOURCE_FLAG_NONE,
 		.SamplerFeedbackMipRegion = {},
@@ -677,7 +677,7 @@ void GpuDevice::Write(const TextureHandle& handle, const void* data)
 	uint32 rowCount;
 	uint64 rowSize;
 	uint64 totalSize;
-	Device->GetCopyableFootprints1(&textureDescriptor, 0, singleResource, 0, &layout, &rowCount, &rowSize, &totalSize);
+	Device->GetCopyableFootprints1(&textureDescription, 0, singleResource, 0, &layout, &rowCount, &rowSize, &totalSize);
 
 	const BufferResource resource = UploadHeap.AllocateBuffer(totalSize, "Upload [Texture]"_view);
 
@@ -711,7 +711,7 @@ void GpuDevice::WriteCubemap(const TextureHandle& handle, const Array<uint8*>& f
 
 	for (usize subresourceIndex = 0; subresourceIndex < handle.GetCount(); ++subresourceIndex)
 	{
-		const D3D12_RESOURCE_DESC1 textureDescriptor =
+		const D3D12_RESOURCE_DESC1 textureDescription =
 		{
 			.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 			.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
@@ -720,13 +720,13 @@ void GpuDevice::WriteCubemap(const TextureHandle& handle, const Array<uint8*>& f
 			.DepthOrArraySize = static_cast<uint16>(handle.GetCount()),
 			.MipLevels = 1,
 			.Format = ToD3D12(handle.GetFormat()),
-			.SampleDesc = DefaultSampleDescriptor,
+			.SampleDesc = DefaultSampleDescription,
 			.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
 			.Flags = D3D12_RESOURCE_FLAG_NONE,
 			.SamplerFeedbackMipRegion = {},
 		};
 		static constexpr uint32 singleResource = 1;
-		Device->GetCopyableFootprints1(&textureDescriptor, static_cast<uint32>(subresourceIndex), singleResource, 0,
+		Device->GetCopyableFootprints1(&textureDescription, static_cast<uint32>(subresourceIndex), singleResource, 0,
 									   &layouts[subresourceIndex], &rowCounts[subresourceIndex], &rowSizes[subresourceIndex], &subresourceSizes[subresourceIndex]);
 
 		totalSize += subresourceSizes[subresourceIndex];
@@ -769,7 +769,7 @@ void GpuDevice::Submit(const GraphicsContext& context)
 
 			for (usize subresourceIndex = 0; subresourceIndex < destination.GetCount(); ++subresourceIndex)
 			{
-				const D3D12_RESOURCE_DESC1 textureDescriptor =
+				const D3D12_RESOURCE_DESC1 textureDescription =
 				{
 					.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 					.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
@@ -778,7 +778,7 @@ void GpuDevice::Submit(const GraphicsContext& context)
 					.DepthOrArraySize = static_cast<uint16>(destination.GetCount()),
 					.MipLevels = 1,
 					.Format = ToD3D12(destination.GetFormat()),
-					.SampleDesc = DefaultSampleDescriptor,
+					.SampleDesc = DefaultSampleDescription,
 					.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
 					.Flags = D3D12_RESOURCE_FLAG_NONE,
 					.SamplerFeedbackMipRegion = {},
@@ -786,7 +786,7 @@ void GpuDevice::Submit(const GraphicsContext& context)
 				static constexpr uint32 singleResource = 1;
 				D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
 				uint32 rowCount;
-				Device->GetCopyableFootprints1(&textureDescriptor, static_cast<uint32>(subresourceIndex), singleResource, 0,
+				Device->GetCopyableFootprints1(&textureDescription, static_cast<uint32>(subresourceIndex), singleResource, 0,
 											   &layout, &rowCount, nullptr, nullptr);
 
 				const D3D12_TEXTURE_COPY_LOCATION sourceLocation =
@@ -882,8 +882,8 @@ void GpuDevice::ResizeSwapChain(uint32 width, uint32 height)
 		frameFenceValue = FrameIndex;
 	}
 
-	RenderTargetDescriptorHeap.Reset();
-	DepthStencilDescriptorHeap.Reset();
+	RenderTargetViewHeap.Reset();
+	DepthStencilViewHeap.Reset();
 }
 
 TextureResource GpuDevice::GetSwapChainResource(usize backBufferIndex) const
@@ -915,14 +915,14 @@ void GpuDevice::AddPendingDelete(IUnknown* pendingDelete)
 	}
 }
 
-void GpuDevice::EnsureConstantBufferDescriptor(const BufferHandle& handle)
+void GpuDevice::EnsureConstantBufferView(const BufferHandle& handle)
 {
 	CHECK(handle.GetType() == BufferType::ConstantBuffer);
 
-	static constexpr DescriptorType descriptorType = DescriptorType::ConstantBuffer;
+	static constexpr ViewType viewType = ViewType::ConstantBuffer;
 
 	Buffer& buffer = Buffers[handle.Get()];
-	if (buffer.HeapIndices[0][static_cast<usize>(descriptorType)])
+	if (buffer.HeapIndices[0][static_cast<usize>(viewType)])
 	{
 		return;
 	}
@@ -934,31 +934,31 @@ void GpuDevice::EnsureConstantBufferDescriptor(const BufferHandle& handle)
 	{
 		if (buffer.Resources[i])
 		{
-			const usize heapIndex = ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.AllocateIndex();
-			buffer.HeapIndices[i][static_cast<usize>(descriptorType)] = heapIndex;
+			const usize heapIndex = ConstantBufferShaderResourceUnorderedAccessViewHeap.AllocateIndex();
+			buffer.HeapIndices[i][static_cast<usize>(viewType)] = heapIndex;
 
-			const D3D12_CONSTANT_BUFFER_VIEW_DESC constantBufferViewDescriptor =
+			const D3D12_CONSTANT_BUFFER_VIEW_DESC constantBufferViewDescription =
 			{
 				.BufferLocation = buffer.Resources[i]->GetGPUVirtualAddress(),
 				.SizeInBytes = static_cast<uint32>(handle.GetSize()),
 			};
 			Device->CreateConstantBufferView
 			(
-				&constantBufferViewDescriptor,
-				D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.GetCpuDescriptor(heapIndex) }
+				&constantBufferViewDescription,
+				D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessViewHeap.GetCpu(heapIndex) }
 			);
 		}
 	}
 }
 
-void GpuDevice::EnsureShaderResourceDescriptor(const BufferHandle& handle)
+void GpuDevice::EnsureShaderResourceView(const BufferHandle& handle)
 {
 	CHECK(handle.GetType() == BufferType::StructuredBuffer);
 
-	static constexpr DescriptorType descriptorType = DescriptorType::ShaderResource;
+	static constexpr ViewType viewType = ViewType::ShaderResource;
 
 	Buffer& buffer = Buffers[handle.Get()];
-	if (buffer.HeapIndices[0][static_cast<usize>(descriptorType)])
+	if (buffer.HeapIndices[0][static_cast<usize>(viewType)])
 	{
 		return;
 	}
@@ -967,10 +967,10 @@ void GpuDevice::EnsureShaderResourceDescriptor(const BufferHandle& handle)
 	{
 		if (buffer.Resources[i])
 		{
-			const usize heapIndex = ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.AllocateIndex();
-			buffer.HeapIndices[i][static_cast<usize>(descriptorType)] = heapIndex;
+			const usize heapIndex = ConstantBufferShaderResourceUnorderedAccessViewHeap.AllocateIndex();
+			buffer.HeapIndices[i][static_cast<usize>(viewType)] = heapIndex;
 
-			D3D12_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDescriptor =
+			D3D12_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDescription =
 			{
 				.Format = DXGI_FORMAT_UNKNOWN,
 				.ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
@@ -986,33 +986,33 @@ void GpuDevice::EnsureShaderResourceDescriptor(const BufferHandle& handle)
 			Device->CreateShaderResourceView
 			(
 				buffer.GetBufferResource(i, handle.IsStream()),
-				&shaderResourceViewDescriptor,
-				D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.GetCpuDescriptor(heapIndex) }
+				&shaderResourceViewDescription,
+				D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessViewHeap.GetCpu(heapIndex) }
 			);
 		}
 	}
 }
 
-void GpuDevice::EnsureShaderResourceDescriptor(const TextureHandle& handle)
+void GpuDevice::EnsureShaderResourceView(const TextureHandle& handle)
 {
-	static constexpr DescriptorType descriptorType = DescriptorType::ShaderResource;
+	static constexpr ViewType viewType = ViewType::ShaderResource;
 
 	Texture& texture = Textures[handle.Get()];
-	if (texture.HeapIndices[static_cast<usize>(descriptorType)])
+	if (texture.HeapIndices[static_cast<usize>(viewType)])
 	{
 		return;
 	}
 
-	const usize heapIndex = ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.AllocateIndex();
-	texture.HeapIndices[static_cast<usize>(descriptorType)] = heapIndex;
+	const usize heapIndex = ConstantBufferShaderResourceUnorderedAccessViewHeap.AllocateIndex();
+	texture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
 
-	D3D12_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDescriptor;
+	D3D12_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDescription;
 	switch (handle.GetType())
 	{
 	case TextureType::Rectangle:
-		shaderResourceViewDescriptor =
+		shaderResourceViewDescription =
 		{
-			.Format = ToD3D12View(handle.GetFormat(), descriptorType),
+			.Format = ToD3D12View(handle.GetFormat(), viewType),
 			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
 			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
 			.Texture2D =
@@ -1025,9 +1025,9 @@ void GpuDevice::EnsureShaderResourceDescriptor(const TextureHandle& handle)
 		};
 		break;
 	case TextureType::Cubemap:
-		shaderResourceViewDescriptor =
+		shaderResourceViewDescription =
 		{
-			.Format = ToD3D12View(handle.GetFormat(), descriptorType),
+			.Format = ToD3D12View(handle.GetFormat(), viewType),
 			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE,
 			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
 			.TextureCube =
@@ -1045,27 +1045,27 @@ void GpuDevice::EnsureShaderResourceDescriptor(const TextureHandle& handle)
 	Device->CreateShaderResourceView
 	(
 		texture.Resource,
-		&shaderResourceViewDescriptor,
-		D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessDescriptorHeap.GetCpuDescriptor(heapIndex) }
+		&shaderResourceViewDescription,
+		D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessViewHeap.GetCpu(heapIndex) }
 	);
 }
 
-void GpuDevice::EnsureRenderTargetDescriptor(const TextureHandle& handle)
+void GpuDevice::EnsureRenderTargetView(const TextureHandle& handle)
 {
-	static constexpr DescriptorType descriptorType = DescriptorType::RenderTarget;
+	static constexpr ViewType viewType = ViewType::RenderTarget;
 
 	Texture& texture = Textures[handle.Get()];
-	if (texture.HeapIndices[static_cast<usize>(descriptorType)])
+	if (texture.HeapIndices[static_cast<usize>(viewType)])
 	{
 		return;
 	}
 
-	const usize heapIndex = RenderTargetDescriptorHeap.AllocateIndex();
-	texture.HeapIndices[static_cast<usize>(descriptorType)] = heapIndex;
+	const usize heapIndex = RenderTargetViewHeap.AllocateIndex();
+	texture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
 
-	const D3D12_RENDER_TARGET_VIEW_DESC renderTargetViewDescriptor =
+	const D3D12_RENDER_TARGET_VIEW_DESC renderTargetViewDescription =
 	{
-		.Format = ToD3D12View(handle.GetFormat(), descriptorType),
+		.Format = ToD3D12View(handle.GetFormat(), viewType),
 		.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
 		.Texture2D =
 		{
@@ -1075,27 +1075,27 @@ void GpuDevice::EnsureRenderTargetDescriptor(const TextureHandle& handle)
 	};
 	Device->CreateRenderTargetView(
 		texture.Resource,
-		&renderTargetViewDescriptor,
-		D3D12_CPU_DESCRIPTOR_HANDLE { RenderTargetDescriptorHeap.GetCpuDescriptor(heapIndex) }
+		&renderTargetViewDescription,
+		D3D12_CPU_DESCRIPTOR_HANDLE { RenderTargetViewHeap.GetCpu(heapIndex) }
 	);
 }
 
-void GpuDevice::EnsureDepthStencilDescriptor(const TextureHandle& handle)
+void GpuDevice::EnsureDepthStencilView(const TextureHandle& handle)
 {
-	static constexpr DescriptorType descriptorType = DescriptorType::DepthStencil;
+	static constexpr ViewType viewType = ViewType::DepthStencil;
 
 	Texture& texture = Textures[handle.Get()];
-	if (texture.HeapIndices[static_cast<usize>(descriptorType)])
+	if (texture.HeapIndices[static_cast<usize>(viewType)])
 	{
 		return;
 	}
 
-	const usize heapIndex = DepthStencilDescriptorHeap.AllocateIndex();
-	texture.HeapIndices[static_cast<usize>(descriptorType)] = heapIndex;
+	const usize heapIndex = DepthStencilViewHeap.AllocateIndex();
+	texture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
 
-	const D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilViewDescriptor =
+	const D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilViewDescription =
 	{
-		.Format = ToD3D12View(handle.GetFormat(), descriptorType),
+		.Format = ToD3D12View(handle.GetFormat(), viewType),
 		.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
 		.Texture2D =
 		{
@@ -1105,8 +1105,8 @@ void GpuDevice::EnsureDepthStencilDescriptor(const TextureHandle& handle)
 	Device->CreateDepthStencilView
 	(
 		texture.Resource,
-		&depthStencilViewDescriptor,
-		D3D12_CPU_DESCRIPTOR_HANDLE { DepthStencilDescriptorHeap.GetCpuDescriptor(heapIndex) }
+		&depthStencilViewDescription,
+		D3D12_CPU_DESCRIPTOR_HANDLE { DepthStencilViewHeap.GetCpu(heapIndex) }
 	);
 }
 
@@ -1267,22 +1267,22 @@ static DXGI_FORMAT MaskToFormat(uint8 mask)
 
 static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array<D3D12_INPUT_ELEMENT_DESC>& inputElements)
 {
-	D3D12_SHADER_DESC shaderDescriptor = {};
-	CHECK_RESULT(shaderReflection->GetDesc(&shaderDescriptor));
+	D3D12_SHADER_DESC shaderDescription = {};
+	CHECK_RESULT(shaderReflection->GetDesc(&shaderDescription));
 
-	for (uint32 i = 0; i < shaderDescriptor.InputParameters; ++i)
+	for (uint32 i = 0; i < shaderDescription.InputParameters; ++i)
 	{
-		D3D12_SIGNATURE_PARAMETER_DESC inputParameterDescriptor = {};
-		CHECK_RESULT(shaderReflection->GetInputParameterDesc(i, &inputParameterDescriptor));
+		D3D12_SIGNATURE_PARAMETER_DESC inputParameterDescription = {};
+		CHECK_RESULT(shaderReflection->GetInputParameterDesc(i, &inputParameterDescription));
 
 		inputElements.Add
 		(
 			D3D12_INPUT_ELEMENT_DESC
 			{
-				.SemanticName = inputParameterDescriptor.SemanticName,
-				.SemanticIndex = inputParameterDescriptor.SemanticIndex,
-				.Format = MaskToFormat(inputParameterDescriptor.Mask),
-				.InputSlot = inputParameterDescriptor.Register,
+				.SemanticName = inputParameterDescription.SemanticName,
+				.SemanticIndex = inputParameterDescription.SemanticIndex,
+				.Format = MaskToFormat(inputParameterDescription.Mask),
+				.InputSlot = inputParameterDescription.Register,
 				.AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT,
 				.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
 				.InstanceDataStepRate = 0,
@@ -1294,59 +1294,59 @@ static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array
 static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 								  HashTable<String, RootParameter>& rootParameters)
 {
-	D3D12_SHADER_DESC shaderDescriptor = {};
-	CHECK_RESULT(shaderReflection->GetDesc(&shaderDescriptor));
+	D3D12_SHADER_DESC shaderDescription = {};
+	CHECK_RESULT(shaderReflection->GetDesc(&shaderDescription));
 
-	for (uint32 i = 0; i < shaderDescriptor.BoundResources; ++i)
+	for (uint32 i = 0; i < shaderDescription.BoundResources; ++i)
 	{
-		D3D12_SHADER_INPUT_BIND_DESC resourceDescriptor = {};
-		CHECK_RESULT(shaderReflection->GetResourceBindingDesc(i, &resourceDescriptor));
+		D3D12_SHADER_INPUT_BIND_DESC resourceDescription = {};
+		CHECK_RESULT(shaderReflection->GetResourceBindingDesc(i, &resourceDescription));
 
-		const usize resourceNameLength = Platform::StringLength(resourceDescriptor.Name);
+		const usize resourceNameLength = Platform::StringLength(resourceDescription.Name);
 		String resourceName = String { resourceNameLength, &GlobalAllocator::Get() };
 		for (usize j = 0; j < resourceNameLength; ++j)
 		{
-			resourceName.Append(resourceDescriptor.Name[j]);
+			resourceName.Append(resourceDescription.Name[j]);
 		}
 
 		RootParameter parameter;
 
-		if (resourceDescriptor.Type == D3D_SIT_CBUFFER)
+		if (resourceDescription.Type == D3D_SIT_CBUFFER)
 		{
 			parameter.Parameter = D3D12_ROOT_PARAMETER1
 			{
 				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV,
 				.Descriptor =
 				{
-					.ShaderRegister = resourceDescriptor.BindPoint,
-					.RegisterSpace = resourceDescriptor.Space,
+					.ShaderRegister = resourceDescription.BindPoint,
+					.RegisterSpace = resourceDescription.Space,
 					.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
 				},
 				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
 			};
 		}
-		else if (resourceDescriptor.Type == D3D_SIT_STRUCTURED)
+		else if (resourceDescription.Type == D3D_SIT_STRUCTURED)
 		{
 			parameter.Parameter = D3D12_ROOT_PARAMETER1
 			{
 				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
 				.Descriptor =
 				{
-					.ShaderRegister = resourceDescriptor.BindPoint,
-					.RegisterSpace = resourceDescriptor.Space,
+					.ShaderRegister = resourceDescription.BindPoint,
+					.RegisterSpace = resourceDescription.Space,
 					.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
 				},
 				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
 			};
 		}
-		else if (resourceDescriptor.Type == D3D_SIT_TEXTURE)
+		else if (resourceDescription.Type == D3D_SIT_TEXTURE)
 		{
 			parameter.Ranges.Add(
 			{
 				.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-				.NumDescriptors = resourceDescriptor.BindCount,
-				.BaseShaderRegister = resourceDescriptor.BindPoint,
-				.RegisterSpace = resourceDescriptor.Space,
+				.NumDescriptors = resourceDescription.BindCount,
+				.BaseShaderRegister = resourceDescription.BindPoint,
+				.RegisterSpace = resourceDescription.Space,
 				.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
 				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
 			});
@@ -1362,14 +1362,14 @@ static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 				.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
 			};
 		}
-		else if (resourceDescriptor.Type == D3D_SIT_SAMPLER)
+		else if (resourceDescription.Type == D3D_SIT_SAMPLER)
 		{
 			parameter.Ranges.Add(
 			{
 				.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
-				.NumDescriptors = resourceDescriptor.BindCount,
-				.BaseShaderRegister = resourceDescriptor.BindPoint,
-				.RegisterSpace = resourceDescriptor.Space,
+				.NumDescriptors = resourceDescription.BindCount,
+				.BaseShaderRegister = resourceDescription.BindPoint,
+				.RegisterSpace = resourceDescription.Space,
 				.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE,
 				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
 			});

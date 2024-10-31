@@ -17,7 +17,7 @@ class Buffer
 {
 public:
 	BufferResource Resources[FramesInFlight];
-	usize HeapIndices[FramesInFlight][static_cast<usize>(DescriptorType::Count)];
+	usize HeapIndices[FramesInFlight][static_cast<usize>(ViewType::Count)];
 
 	BufferResource GetOnlyBufferResource() const
 	{
@@ -46,7 +46,7 @@ class Texture
 {
 public:
 	TextureResource Resource;
-	usize HeapIndices[static_cast<usize>(DescriptorType::Count)];
+	usize HeapIndices[static_cast<usize>(ViewType::Count)];
 
 	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
 };
@@ -116,12 +116,12 @@ private:
 	void ReleaseFrameDeletes();
 	void AddPendingDelete(IUnknown* pendingDelete);
 
-	void EnsureConstantBufferDescriptor(const BufferHandle& handle);
-	void EnsureShaderResourceDescriptor(const BufferHandle& handle);
+	void EnsureConstantBufferView(const BufferHandle& handle);
+	void EnsureShaderResourceView(const BufferHandle& handle);
 
-	void EnsureShaderResourceDescriptor(const TextureHandle& handle);
-	void EnsureRenderTargetDescriptor(const TextureHandle& handle);
-	void EnsureDepthStencilDescriptor(const TextureHandle& handle);
+	void EnsureShaderResourceView(const TextureHandle& handle);
+	void EnsureRenderTargetView(const TextureHandle& handle);
+	void EnsureDepthStencilView(const TextureHandle& handle);
 
 	ID3D12Device11* GetDevice() const;
 	IDXGISwapChain4* GetSwapChain() const;
@@ -150,15 +150,15 @@ private:
 	Array<UploadPair<BufferHandle>> PendingBufferUploads;
 	Array<UploadPair<TextureHandle>> PendingTextureUploads;
 
-	DescriptorHeap ConstantBufferShaderResourceUnorderedAccessDescriptorHeap;
-	DescriptorHeap RenderTargetDescriptorHeap;
-	DescriptorHeap DepthStencilDescriptorHeap;
-	DescriptorHeap SamplerDescriptorHeap;
+	ViewHeap ConstantBufferShaderResourceUnorderedAccessViewHeap;
+	ViewHeap RenderTargetViewHeap;
+	ViewHeap DepthStencilViewHeap;
+	ViewHeap SamplerViewHeap;
 
 	GpuHeap DefaultHeap;
 	GpuHeap UploadHeap;
 
-	friend DescriptorHeap;
+	friend ViewHeap;
 	friend GraphicsContext;
 	friend GpuHeap;
 };

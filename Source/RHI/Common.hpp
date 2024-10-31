@@ -42,7 +42,7 @@ struct Float4
 	float W;
 };
 
-enum class DescriptorType
+enum class ViewType
 {
 	ConstantBuffer,
 	ShaderResource,
@@ -57,8 +57,8 @@ struct ID3D12Resource2;
 using BufferResource = ID3D12Resource2*;
 using TextureResource = ID3D12Resource2*;
 
-using CpuDescriptor = usize;
-using GpuDescriptor = usize;
+using CpuView = usize;
+using GpuView = usize;
 
 template<typename Tag>
 struct RhiHandle
@@ -302,7 +302,7 @@ private:
 };
 
 inline constexpr uint32 FramesInFlight = 2;
-inline constexpr DXGI_SAMPLE_DESC DefaultSampleDescriptor = { 1, 0 };
+inline constexpr DXGI_SAMPLE_DESC DefaultSampleDescription = { 1, 0 };
 
 inline TextureFormat FromD3D12(DXGI_FORMAT format)
 {

@@ -31,7 +31,7 @@ private:
 	GpuDevice* Device;
 };
 
-enum class DescriptorHeapType
+enum class ViewHeapType
 {
 	ConstantBufferShaderResourceUnorderedAccess,
 	Sampler,
@@ -39,26 +39,26 @@ enum class DescriptorHeapType
 	DepthStencil,
 };
 
-class DescriptorHeap : public NoCopy
+class ViewHeap : public NoCopy
 {
 public:
-	DescriptorHeap() = default;
+	ViewHeap() = default;
 
-	void Create(usize descriptorCount, DescriptorHeapType type, bool shaderVisible, const GpuDevice* device);
+	void Create(usize viewCount, ViewHeapType type, bool shaderVisible, const GpuDevice* device);
 	void Destroy();
 
 	usize AllocateIndex();
 	void Reset();
 
-	CpuDescriptor GetCpuDescriptor(usize index) const;
-	GpuDescriptor GetGpuDescriptor(usize index) const;
+	CpuView GetCpu(usize index) const;
+	GpuView GetGpu(usize index) const;
 
-	ID3D12DescriptorHeap* GetHeap();
+	ID3D12DescriptorHeap* GetHeap() const;
 
 private:
 	ID3D12DescriptorHeap* Heap;
 	usize Count;
-	usize DescriptorSize;
+	usize ViewSize;
 	usize CpuBase;
 	usize Index;
 };
