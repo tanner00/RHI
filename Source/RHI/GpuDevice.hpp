@@ -17,7 +17,6 @@ class Buffer
 {
 public:
 	BufferResource Resources[FramesInFlight];
-	usize HeapIndices[FramesInFlight][static_cast<usize>(ViewType::Count)];
 
 	BufferResource GetOnlyBufferResource() const
 	{
@@ -107,9 +106,6 @@ public:
 private:
 	void ReleaseFrameDeletes();
 	void AddPendingDelete(IUnknown* pendingDelete);
-
-	void EnsureConstantBufferView(const BufferHandle& handle);
-	void EnsureShaderResourceView(const BufferHandle& handle);
 
 	void EnsureShaderResourceView(const TextureHandle& handle);
 	void EnsureRenderTargetView(const TextureHandle& handle);

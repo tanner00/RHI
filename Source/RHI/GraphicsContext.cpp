@@ -164,8 +164,6 @@ void GraphicsContext::SetConstantBuffer(StringView name, const BufferHandle& han
 
 	CHECK(offsetIndex < handle.GetCount());
 
-	Device->EnsureConstantBufferView(handle);
-
 	const usize offset = offsetIndex * handle.GetStride();
 	const usize gpuAddress = Device->Buffers[handle.Get()].GetBufferResource(Device->GetFrameIndex(), handle.IsStream())->GetGPUVirtualAddress() + offset;
 	CommandList->SetGraphicsRootConstantBufferView
@@ -183,8 +181,6 @@ void GraphicsContext::SetBuffer(StringView name, const BufferHandle& handle) con
 
 	const GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[CurrentGraphicsPipeline->Get()];
 	CHECK(currentPipeline.Parameters.Contains(name));
-
-	Device->EnsureShaderResourceView(handle);
 
 	const usize gpuAddress = Device->Buffers[handle.Get()].GetBufferResource(Device->GetFrameIndex(), handle.IsStream())->GetGPUVirtualAddress();
 	CommandList->SetGraphicsRootShaderResourceView
@@ -236,7 +232,7 @@ void GraphicsContext::Draw(usize vertexCount) const
 
 void GraphicsContext::GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const
 {
-	const D3D12_GLOBAL_BARRIER d3d12Barrier =
+	const D3D12_GLOBAL_BARRIER globalBarrier =
 	{
 		.SyncBefore = ToD3D12(stage.Before),
 		.SyncAfter = ToD3D12(stage.After),
@@ -247,14 +243,14 @@ void GraphicsContext::GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair
 	{
 		.Type = D3D12_BARRIER_TYPE_GLOBAL,
 		.NumBarriers = 1,
-		.pGlobalBarriers = &d3d12Barrier,
+		.pGlobalBarriers = &globalBarrier,
 	};
 	CommandList->Barrier(1, &barrierGroup);
 }
 
 void GraphicsContext::BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const BufferHandle& buffer) const
 {
-	const D3D12_BUFFER_BARRIER d3d12Barrier =
+	const D3D12_BUFFER_BARRIER bufferBarrier =
 	{
 		.SyncBefore = ToD3D12(stage.Before),
 		.SyncAfter = ToD3D12(stage.After),
@@ -268,7 +264,7 @@ void GraphicsContext::BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair
 	{
 		.Type = D3D12_BARRIER_TYPE_BUFFER,
 		.NumBarriers = 1,
-		.pBufferBarriers = &d3d12Barrier,
+		.pBufferBarriers = &bufferBarrier,
 	};
 	CommandList->Barrier(1, &barrierGroup);
 }
@@ -285,7 +281,7 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPai
 		.FirstPlane = 0,
 		.NumPlanes = 0,
 	};
-	const D3D12_TEXTURE_BARRIER d3d12Barrier =
+	const D3D12_TEXTURE_BARRIER textureBarrier =
 	{
 		.SyncBefore = ToD3D12(stage.Before),
 		.SyncAfter = ToD3D12(stage.After),
@@ -301,7 +297,7 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPai
 	{
 		.Type = D3D12_BARRIER_TYPE_TEXTURE,
 		.NumBarriers = 1,
-		.pTextureBarriers = &d3d12Barrier,
+		.pTextureBarriers = &textureBarrier,
 	};
 	CommandList->Barrier(1, &barrierGroup);
 }
