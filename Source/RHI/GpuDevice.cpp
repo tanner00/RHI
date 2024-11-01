@@ -23,7 +23,7 @@ namespace Dxc
 static void Init();
 static void Shutdown();
 
-static Shader CompileShader(ShaderStage stage, StringView filePath);
+static D3D12Shader CompileShader(ShaderStage stage, StringView filePath);
 
 static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array<D3D12_INPUT_ELEMENT_DESC>& inputElements);
 static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
@@ -268,71 +268,71 @@ GpuDevice::~GpuDevice()
 #endif
 }
 
-BufferHandle GpuDevice::CreateBuffer(StringView name, const BufferDescription& description)
+Buffer GpuDevice::CreateBuffer(StringView name, const BufferDescription& description)
 {
-	const BufferHandle handle = { HandleIndex++, description };
-	Buffer buffer = {};
+	const Buffer buffer = { HandleIndex++, description };
+	D3D12Buffer apiBuffer = {};
 
-	CHECK(handle.GetSize() != 0);
+	CHECK(buffer.GetSize() != 0);
 
-	const usize resourceCount = handle.IsStream() ? FramesInFlight : 1;
+	const usize resourceCount = buffer.IsStream() ? FramesInFlight : 1;
 	for (usize i = 0; i < resourceCount; ++i)
 	{
-		if (handle.IsStream())
+		if (buffer.IsStream())
 		{
-			buffer.Resources[i] = UploadHeap.AllocateBuffer(handle.GetSize(), name);
+			apiBuffer.Resources[i] = UploadHeap.AllocateBuffer(buffer.GetSize(), name);
 		}
 		else
 		{
-			buffer.Resources[i] = DefaultHeap.AllocateBuffer(handle.GetSize(), name);
+			apiBuffer.Resources[i] = DefaultHeap.AllocateBuffer(buffer.GetSize(), name);
 		}
 	}
 
-	Buffers.Add(handle.Get(), Move(buffer));
-	return handle;
+	Buffers.Add(buffer.Get(), Move(apiBuffer));
+	return buffer;
 }
 
-BufferHandle GpuDevice::CreateBuffer(StringView name, const void* staticData, const BufferDescription& description)
+Buffer GpuDevice::CreateBuffer(StringView name, const void* staticData, const BufferDescription& description)
 {
-	const BufferHandle handle = CreateBuffer(name, description);
-	CHECK(handle.IsStatic());
+	const Buffer buffer = CreateBuffer(name, description);
+	CHECK(buffer.IsStatic());
 
-	const BufferResource uploadResource = UploadHeap.AllocateBuffer(handle.GetSize(), "Upload [Buffer]"_view);
-	PendingBufferUploads.Add({ uploadResource, handle });
+	const BufferResource uploadResource = UploadHeap.AllocateBuffer(buffer.GetSize(), "Upload [Buffer]"_view);
+	PendingBufferUploads.Add({ uploadResource, buffer });
 
 	void* mapped = nullptr;
 	CHECK_RESULT(uploadResource->Map(0, nullptr, &mapped));
-	Platform::MemoryCopy(mapped, staticData, handle.GetSize());
+	Platform::MemoryCopy(mapped, staticData, buffer.GetSize());
 	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	uploadResource->Unmap(0, writeEverything);
 
-	return handle;
+	return buffer;
 }
 
-TextureHandle GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, const TextureDescription& description, TextureResource existingResource)
+Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, const TextureDescription& description, TextureResource existingResource)
 {
-	const TextureHandle handle = { HandleIndex++, description };
-	Texture texture = {};
+	const Texture texture = { HandleIndex++, description };
+	D3D12Texture apiTexture = {};
 
 	if (existingResource)
 	{
-		texture.Resource = existingResource;
+		apiTexture.Resource = existingResource;
 	}
 	else
 	{
-		texture.Resource = DefaultHeap.AllocateTexture(handle, initialLayout, name);
+		apiTexture.Resource = DefaultHeap.AllocateTexture(texture, initialLayout, name);
 	}
-	Textures.Add(handle.Get(), Move(texture));
-	return handle;
+	Textures.Add(texture.Get(), Move(apiTexture));
+	return texture;
 }
 
-SamplerHandle GpuDevice::CreateSampler(const SamplerDescription& description)
+Sampler GpuDevice::CreateSampler(const SamplerDescription& description)
 {
-	const SamplerHandle handle = { HandleIndex++, description };
-	Sampler sampler = {};
+	const Sampler sampler = { HandleIndex++, description };
+	D3D12Sampler apiSampler = {};
 
 	const usize heapIndex = SamplerViewHeap.AllocateIndex();
-	sampler.HeapIndex = heapIndex;
+	apiSampler.HeapIndex = heapIndex;
 
 	const D3D12_SAMPLER_DESC2 samplerDescription =
 	{
@@ -356,42 +356,42 @@ SamplerHandle GpuDevice::CreateSampler(const SamplerDescription& description)
 	};
 	Device->CreateSampler2(&samplerDescription, D3D12_CPU_DESCRIPTOR_HANDLE {SamplerViewHeap.GetCpu(heapIndex) });
 
-	Samplers.Add(handle.Get(), Move(sampler));
-	return handle;
+	Samplers.Add(sampler.Get(), Move(apiSampler));
+	return sampler;
 }
 
-ShaderHandle GpuDevice::CreateShader(const ShaderDescription& description)
+Shader GpuDevice::CreateShader(const ShaderDescription& description)
 {
-	const ShaderHandle handle = { HandleIndex++, description };
-	Shader result = Dxc::CompileShader(handle.GetStage(), handle.GetFilePath());
+	const Shader shader = { HandleIndex++, description };
+	D3D12Shader apiShader = Dxc::CompileShader(shader.GetStage(), shader.GetFilePath());
 
-	Shaders.Add(handle.Get(), Move(result));
-	return handle;
+	Shaders.Add(shader.Get(), Move(apiShader));
+	return shader;
 }
 
-GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description)
+GraphicsPipeline GpuDevice::CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description)
 {
 	static constexpr usize bindingBucketCount = 4;
 
-	const GraphicsPipelineHandle handle = { HandleIndex++, description };
+	const GraphicsPipeline graphicsPipeline = { HandleIndex++, description };
 
 	HashTable<String, usize> parameters(bindingBucketCount);
 	ID3D12RootSignature* rootSignature = nullptr;
 	ID3D12PipelineState* pipelineState = nullptr;
 
-	CHECK(handle.HasShaderStage(ShaderStage::Vertex));
-	const bool usesPixelShader = handle.HasShaderStage(ShaderStage::Pixel);
+	CHECK(graphicsPipeline.HasShaderStage(ShaderStage::Vertex));
+	const bool usesPixelShader = graphicsPipeline.HasShaderStage(ShaderStage::Pixel);
 	if (usesPixelShader)
 	{
-		CHECK(handle.GetStageCount() == 2);
+		CHECK(graphicsPipeline.GetStageCount() == 2);
 	}
 	else
 	{
-		CHECK(handle.GetStageCount() == 1);
+		CHECK(graphicsPipeline.GetStageCount() == 1);
 	}
 
-	const Shader* vertex = &Shaders[handle.GetShaderStage(ShaderStage::Vertex).Get()];
-	const Shader* pixel = usesPixelShader ? &Shaders[handle.GetShaderStage(ShaderStage::Pixel).Get()] : nullptr;
+	const D3D12Shader* vertex = &Shaders[graphicsPipeline.GetShaderStage(ShaderStage::Vertex).Get()];
+	const D3D12Shader* pixel = usesPixelShader ? &Shaders[graphicsPipeline.GetShaderStage(ShaderStage::Pixel).Get()] : nullptr;
 
 	Array<D3D12_INPUT_ELEMENT_DESC> inputElements;
 	Dxc::ReflectInputElements(vertex->Reflection, inputElements);
@@ -500,10 +500,10 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 		},
 		.DepthStencilState =
 		{
-			.DepthEnable = IsDepthFormat(handle.GetDepthFormat()),
+			.DepthEnable = IsDepthFormat(graphicsPipeline.GetDepthFormat()),
 			.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL,
 			.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
-			.StencilEnable = IsStencilFormat(handle.GetDepthFormat()),
+			.StencilEnable = IsStencilFormat(graphicsPipeline.GetDepthFormat()),
 			.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK,
 			.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK,
 			.FrontFace =
@@ -531,9 +531,9 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 		.NumRenderTargets = usesPixelShader ? 1U : 0U,
 		.RTVFormats =
 		{
-			ToD3D12(handle.GetRenderTargetFormat()),
+			ToD3D12(graphicsPipeline.GetRenderTargetFormat()),
 		},
-		.DSVFormat = ToD3D12(handle.GetDepthFormat()),
+		.DSVFormat = ToD3D12(graphicsPipeline.GetDepthFormat()),
 		.SampleDesc = DefaultSampleDescription,
 		.NodeMask = 0,
 		.CachedPSO = {},
@@ -545,81 +545,81 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 #else
 	(void)name;
 #endif
-	GraphicsPipeline graphicsPipeline =
+	D3D12GraphicsPipeline apiGraphicsPipeline =
 	{
 		.Parameters = Move(parameters),
 		.RootSignature = rootSignature,
 		.PipelineState = pipelineState,
 	};
-	GraphicsPipelines.Add(handle.Get(), Move(graphicsPipeline));
-	return handle;
+	GraphicsPipelines.Add(graphicsPipeline.Get(), Move(apiGraphicsPipeline));
+	return graphicsPipeline;
 }
 
-void GpuDevice::DestroyBuffer(BufferHandle* handle)
+void GpuDevice::DestroyBuffer(Buffer* buffer)
 {
-	if (!handle->IsValid())
+	if (!buffer->IsValid())
 	{
 		return;
 	}
 
-	for (const BufferResource resource : Buffers[handle->Get()].Resources)
+	for (const BufferResource resource : Buffers[buffer->Get()].Resources)
 	{
 		AddPendingDelete(resource);
 	}
-	Buffers.Remove(handle->Get());
-	handle->Reset();
+	Buffers.Remove(buffer->Get());
+	buffer->Reset();
 }
 
-void GpuDevice::DestroyTexture(TextureHandle* handle)
+void GpuDevice::DestroyTexture(Texture* texture)
 {
-	if (!handle->IsValid())
+	if (!texture->IsValid())
 	{
 		return;
 	}
 
-	const Texture& texture = Textures[handle->Get()];
-	AddPendingDelete(texture.Resource);
-	Textures.Remove(handle->Get());
-	handle->Reset();
+	const D3D12Texture& apiTexture = Textures[texture->Get()];
+	AddPendingDelete(apiTexture.Resource);
+	Textures.Remove(texture->Get());
+	texture->Reset();
 }
 
-void GpuDevice::DestroySampler(SamplerHandle* handle)
+void GpuDevice::DestroySampler(Sampler* sampler)
 {
-	if (!handle->IsValid())
+	if (!sampler->IsValid())
 	{
 		return;
 	}
 
-	Samplers.Remove(handle->Get());
-	handle->Reset();
+	Samplers.Remove(sampler->Get());
+	sampler->Reset();
 }
 
-void GpuDevice::DestroyShader(ShaderHandle* handle)
+void GpuDevice::DestroyShader(Shader* shader)
 {
-	if (!handle->IsValid())
+	if (!shader->IsValid())
 	{
 		return;
 	}
 
-	const Shader& shader = Shaders[handle->Get()];
-	AddPendingDelete(shader.Blob);
-	AddPendingDelete(shader.Reflection);
-	Shaders.Remove(handle->Get());
-	handle->Reset();
+	const D3D12Shader& apiShader = Shaders[shader->Get()];
+	AddPendingDelete(apiShader.Blob);
+	AddPendingDelete(apiShader.Reflection);
+	Shaders.Remove(shader->Get());
+	shader->Reset();
 }
 
-void GpuDevice::DestroyGraphicsPipeline(GraphicsPipelineHandle* handle)
+void GpuDevice::DestroyGraphicsPipeline(GraphicsPipeline* graphicsPipeline)
 {
-	if (!handle->IsValid())
+	if (!graphicsPipeline->IsValid())
 	{
 		return;
 	}
 
-	const GraphicsPipeline& pipeline = GraphicsPipelines[handle->Get()];
-	AddPendingDelete(pipeline.PipelineState);
-	AddPendingDelete(pipeline.RootSignature);
-	GraphicsPipelines.Remove(handle->Get());
-	handle->Reset();
+	const D3D12GraphicsPipeline& apiGraphicsPipeline = GraphicsPipelines[graphicsPipeline->Get()];
+	AddPendingDelete(apiGraphicsPipeline.PipelineState);
+	AddPendingDelete(apiGraphicsPipeline.RootSignature);
+	GraphicsPipelines.Remove(graphicsPipeline->Get());
+	graphicsPipeline->Reset();
 }
 
 GraphicsContext GpuDevice::CreateGraphicsContext()
@@ -627,42 +627,42 @@ GraphicsContext GpuDevice::CreateGraphicsContext()
 	return GraphicsContext(this);
 }
 
-void GpuDevice::Write(const BufferHandle& handle, const void* data)
+void GpuDevice::Write(const Buffer& buffer, const void* data)
 {
-	const Buffer& buffer = Buffers[handle.Get()];
+	const D3D12Buffer& apiBuffer = Buffers[buffer.Get()];
 
 	BufferResource resource = nullptr;
-	CHECK(!handle.IsStatic());
-	if (handle.IsStream())
+	CHECK(!buffer.IsStatic());
+	if (buffer.IsStream())
 	{
-		resource = buffer.GetBufferResource(GetFrameIndex(), true);
+		resource = apiBuffer.GetBufferResource(GetFrameIndex(), true);
 	}
-	else if (handle.IsDynamic())
+	else if (buffer.IsDynamic())
 	{
-		resource = UploadHeap.AllocateBuffer(handle.GetSize(), "Upload [Buffer]"_view);
-		PendingBufferUploads.Add({ resource, handle });
+		resource = UploadHeap.AllocateBuffer(buffer.GetSize(), "Upload [Buffer]"_view);
+		PendingBufferUploads.Add({ resource, buffer });
 	}
 
 	void* mapped = nullptr;
 	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
-	Platform::MemoryCopy(mapped, data, handle.GetSize());
+	Platform::MemoryCopy(mapped, data, buffer.GetSize());
 	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
 }
 
-void GpuDevice::Write(const TextureHandle& handle, const void* data)
+void GpuDevice::Write(const Texture& texture, const void* data)
 {
-	CHECK(handle.GetType() == TextureType::Rectangle);
+	CHECK(texture.GetType() == TextureType::Rectangle);
 
 	const D3D12_RESOURCE_DESC1 textureDescription =
 	{
 		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		.Width = handle.GetWidth(),
-		.Height = handle.GetHeight(),
-		.DepthOrArraySize = static_cast<uint16>(handle.GetCount()),
+		.Width = texture.GetWidth(),
+		.Height = texture.GetHeight(),
+		.DepthOrArraySize = static_cast<uint16>(texture.GetCount()),
 		.MipLevels = 1,
-		.Format = ToD3D12(handle.GetFormat()),
+		.Format = ToD3D12(texture.GetFormat()),
 		.SampleDesc = DefaultSampleDescription,
 		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
 		.Flags = D3D12_RESOURCE_FLAG_NONE,
@@ -691,12 +691,12 @@ void GpuDevice::Write(const TextureHandle& handle, const void* data)
 	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
 
-	PendingTextureUploads.Add({ resource, handle });
+	PendingTextureUploads.Add({ resource, texture });
 }
 
-void GpuDevice::WriteCubemap(const TextureHandle& handle, const Array<uint8*>& faces)
+void GpuDevice::WriteCubemap(const Texture& texture, const Array<uint8*>& faces)
 {
-	CHECK(handle.GetType() == TextureType::Cubemap);
+	CHECK(texture.GetType() == TextureType::Cubemap);
 	CHECK(faces.GetLength() == 6);
 
 	usize totalSize = 0;
@@ -705,17 +705,17 @@ void GpuDevice::WriteCubemap(const TextureHandle& handle, const Array<uint8*>& f
 	uint32 rowCounts[6];
 	usize rowSizes[6];
 
-	for (usize subresourceIndex = 0; subresourceIndex < handle.GetCount(); ++subresourceIndex)
+	for (usize subresourceIndex = 0; subresourceIndex < texture.GetCount(); ++subresourceIndex)
 	{
 		const D3D12_RESOURCE_DESC1 textureDescription =
 		{
 			.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 			.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-			.Width = handle.GetWidth(),
-			.Height = handle.GetHeight(),
-			.DepthOrArraySize = static_cast<uint16>(handle.GetCount()),
+			.Width = texture.GetWidth(),
+			.Height = texture.GetHeight(),
+			.DepthOrArraySize = static_cast<uint16>(texture.GetCount()),
 			.MipLevels = 1,
-			.Format = ToD3D12(handle.GetFormat()),
+			.Format = ToD3D12(texture.GetFormat()),
 			.SampleDesc = DefaultSampleDescription,
 			.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
 			.Flags = D3D12_RESOURCE_FLAG_NONE,
@@ -727,12 +727,12 @@ void GpuDevice::WriteCubemap(const TextureHandle& handle, const Array<uint8*>& f
 
 		totalSize += subresourceSizes[subresourceIndex];
 	}
+
 	const BufferResource resource = UploadHeap.AllocateBuffer(totalSize, "Upload [Cubemap Texture]"_view);
 
 	void* mapped = nullptr;
 	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
-
-	for (usize subresourceIndex = 0; subresourceIndex < handle.GetCount(); ++subresourceIndex)
+	for (usize subresourceIndex = 0; subresourceIndex < texture.GetCount(); ++subresourceIndex)
 	{
 		for (usize row = 0; row < rowCounts[subresourceIndex]; ++row)
 		{
@@ -744,11 +744,10 @@ void GpuDevice::WriteCubemap(const TextureHandle& handle, const Array<uint8*>& f
 			);
 		}
 	}
-
 	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
 
-	PendingTextureUploads.Add({ resource, handle });
+	PendingTextureUploads.Add({ resource, texture });
 }
 
 void GpuDevice::Submit(const GraphicsContext& context)
@@ -761,7 +760,7 @@ void GpuDevice::Submit(const GraphicsContext& context)
 
 		for (const auto& [source, destination] : PendingTextureUploads)
 		{
-			const Texture& destinationTexture = Textures[destination.Get()];
+			const D3D12Texture& destinationTexture = Textures[destination.Get()];
 
 			for (usize subresourceIndex = 0; subresourceIndex < destination.GetCount(); ++subresourceIndex)
 			{
@@ -805,7 +804,7 @@ void GpuDevice::Submit(const GraphicsContext& context)
 
 		for (const auto& [source, destination] : PendingBufferUploads)
 		{
-			const Buffer& destinationBuffer = Buffers[destination.Get()];
+			const D3D12Buffer& destinationBuffer = Buffers[destination.Get()];
 			UploadCommandList->CopyResource(destinationBuffer.GetOnlyBufferResource(), source);
 
 			PendingDeletes[FrameIndex].Add(source);
@@ -911,26 +910,26 @@ void GpuDevice::AddPendingDelete(IUnknown* pendingDelete)
 	}
 }
 
-void GpuDevice::EnsureShaderResourceView(const TextureHandle& handle)
+void GpuDevice::EnsureShaderResourceView(const Texture& texture)
 {
 	static constexpr ViewType viewType = ViewType::ShaderResource;
 
-	Texture& texture = Textures[handle.Get()];
-	if (texture.HeapIndices[static_cast<usize>(viewType)])
+	D3D12Texture& apiTexture = Textures[texture.Get()];
+	if (apiTexture.HeapIndices[static_cast<usize>(viewType)])
 	{
 		return;
 	}
 
 	const usize heapIndex = ConstantBufferShaderResourceUnorderedAccessViewHeap.AllocateIndex();
-	texture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
+	apiTexture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDescription;
-	switch (handle.GetType())
+	switch (texture.GetType())
 	{
 	case TextureType::Rectangle:
 		shaderResourceViewDescription =
 		{
-			.Format = ToD3D12View(handle.GetFormat(), viewType),
+			.Format = ToD3D12View(texture.GetFormat(), viewType),
 			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
 			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
 			.Texture2D =
@@ -945,7 +944,7 @@ void GpuDevice::EnsureShaderResourceView(const TextureHandle& handle)
 	case TextureType::Cubemap:
 		shaderResourceViewDescription =
 		{
-			.Format = ToD3D12View(handle.GetFormat(), viewType),
+			.Format = ToD3D12View(texture.GetFormat(), viewType),
 			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE,
 			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
 			.TextureCube =
@@ -962,28 +961,28 @@ void GpuDevice::EnsureShaderResourceView(const TextureHandle& handle)
 	}
 	Device->CreateShaderResourceView
 	(
-		texture.Resource,
+		apiTexture.Resource,
 		&shaderResourceViewDescription,
 		D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessViewHeap.GetCpu(heapIndex) }
 	);
 }
 
-void GpuDevice::EnsureRenderTargetView(const TextureHandle& handle)
+void GpuDevice::EnsureRenderTargetView(const Texture& texture)
 {
 	static constexpr ViewType viewType = ViewType::RenderTarget;
 
-	Texture& texture = Textures[handle.Get()];
-	if (texture.HeapIndices[static_cast<usize>(viewType)])
+	D3D12Texture& apiTexture = Textures[texture.Get()];
+	if (apiTexture.HeapIndices[static_cast<usize>(viewType)])
 	{
 		return;
 	}
 
 	const usize heapIndex = RenderTargetViewHeap.AllocateIndex();
-	texture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
+	apiTexture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
 
 	const D3D12_RENDER_TARGET_VIEW_DESC renderTargetViewDescription =
 	{
-		.Format = ToD3D12View(handle.GetFormat(), viewType),
+		.Format = ToD3D12View(texture.GetFormat(), viewType),
 		.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
 		.Texture2D =
 		{
@@ -992,28 +991,28 @@ void GpuDevice::EnsureRenderTargetView(const TextureHandle& handle)
 		},
 	};
 	Device->CreateRenderTargetView(
-		texture.Resource,
+		apiTexture.Resource,
 		&renderTargetViewDescription,
 		D3D12_CPU_DESCRIPTOR_HANDLE { RenderTargetViewHeap.GetCpu(heapIndex) }
 	);
 }
 
-void GpuDevice::EnsureDepthStencilView(const TextureHandle& handle)
+void GpuDevice::EnsureDepthStencilView(const Texture& texture)
 {
 	static constexpr ViewType viewType = ViewType::DepthStencil;
 
-	Texture& texture = Textures[handle.Get()];
-	if (texture.HeapIndices[static_cast<usize>(viewType)])
+	D3D12Texture& apiTexture = Textures[texture.Get()];
+	if (apiTexture.HeapIndices[static_cast<usize>(viewType)])
 	{
 		return;
 	}
 
 	const usize heapIndex = DepthStencilViewHeap.AllocateIndex();
-	texture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
+	apiTexture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
 
 	const D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilViewDescription =
 	{
-		.Format = ToD3D12View(handle.GetFormat(), viewType),
+		.Format = ToD3D12View(texture.GetFormat(), viewType),
 		.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
 		.Texture2D =
 		{
@@ -1022,7 +1021,7 @@ void GpuDevice::EnsureDepthStencilView(const TextureHandle& handle)
 	};
 	Device->CreateDepthStencilView
 	(
-		texture.Resource,
+		apiTexture.Resource,
 		&depthStencilViewDescription,
 		D3D12_CPU_DESCRIPTOR_HANDLE { DepthStencilViewHeap.GetCpu(heapIndex) }
 	);
@@ -1061,7 +1060,7 @@ static void Shutdown()
 	SAFE_RELEASE(Compiler);
 }
 
-Shader CompileShader(ShaderStage stage, StringView filePath)
+D3D12Shader CompileShader(ShaderStage stage, StringView filePath)
 {
 	CHECK(Compiler && Utils);
 
@@ -1161,7 +1160,7 @@ Shader CompileShader(ShaderStage stage, StringView filePath)
 	SAFE_RELEASE(reflectionBlob);
 	SAFE_RELEASE(compileResult);
 
-	return Shader { shaderBlob, shaderReflection };
+	return D3D12Shader { shaderBlob, shaderReflection };
 }
 
 static DXGI_FORMAT MaskToFormat(uint8 mask)

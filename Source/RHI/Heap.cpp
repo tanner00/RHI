@@ -100,21 +100,21 @@ BufferResource GpuHeap::AllocateBuffer(usize size, StringView name)
 	return resource;
 }
 
-TextureResource GpuHeap::AllocateTexture(const TextureHandle& handle, BarrierLayout initialLayout, StringView name)
+TextureResource GpuHeap::AllocateTexture(const Texture& texture, BarrierLayout initialLayout, StringView name)
 {
-	const D3D12_RESOURCE_FLAGS renderTargetFlag = handle.IsRenderTarget() ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
-	const D3D12_RESOURCE_FLAGS depthStencilFlag = IsDepthFormat(handle.GetFormat()) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
+	const D3D12_RESOURCE_FLAGS renderTargetFlag = texture.IsRenderTarget() ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
+	const D3D12_RESOURCE_FLAGS depthStencilFlag = IsDepthFormat(texture.GetFormat()) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
 	CHECK((renderTargetFlag & depthStencilFlag) == 0);
 
 	const D3D12_RESOURCE_DESC1 textureDescription =
 	{
 		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
 		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		.Width = handle.GetWidth(),
-		.Height = handle.GetHeight(),
-		.DepthOrArraySize = static_cast<uint16>(handle.GetCount()),
+		.Width = texture.GetWidth(),
+		.Height = texture.GetHeight(),
+		.DepthOrArraySize = static_cast<uint16>(texture.GetCount()),
 		.MipLevels = 1,
-		.Format = ToD3D12(handle.GetFormat()),
+		.Format = ToD3D12(texture.GetFormat()),
 		.SampleDesc = DefaultSampleDescription,
 		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
 		.Flags = renderTargetFlag | depthStencilFlag,
@@ -122,7 +122,7 @@ TextureResource GpuHeap::AllocateTexture(const TextureHandle& handle, BarrierLay
 	};
 	const D3D12_CLEAR_VALUE depthClear =
 	{
-		.Format = ToD3D12(handle.GetFormat()),
+		.Format = ToD3D12(texture.GetFormat()),
 		.DepthStencil =
 		{
 			.Depth = D3D12_MAX_DEPTH,
@@ -137,7 +137,7 @@ TextureResource GpuHeap::AllocateTexture(const TextureHandle& handle, BarrierLay
 	TextureResource resource = nullptr;
 	static constexpr const DXGI_FORMAT* noCastableFormats = nullptr;
 	CHECK_RESULT(Device->GetDevice()->CreatePlacedResource2(Heap, Offset, &textureDescription, ToD3D12(initialLayout),
-															IsDepthFormat(handle.GetFormat()) ? &depthClear : nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
+															IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
 	Offset = newOffset;
 
 #if DEBUG

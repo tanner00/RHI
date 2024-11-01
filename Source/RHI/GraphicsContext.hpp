@@ -99,28 +99,27 @@ public:
 
 	void SetViewport(uint32 width, uint32 height) const;
 
-	void SetRenderTarget(const TextureHandle& handle) const;
-	void SetRenderTarget(const TextureHandle& handle, const TextureHandle& depthStencilHandle) const;
-	void SetDepthRenderTarget(const TextureHandle& handle) const;
+	void SetRenderTarget(const Texture& renderTarget) const;
+	void SetRenderTarget(const Texture& renderTarget, const Texture& depthStencil) const;
+	void SetDepthRenderTarget(const Texture& depthStencil) const;
 
-	void ClearRenderTarget(const TextureHandle& handle, Float4 color) const;
-	void ClearDepthStencil(const TextureHandle& handle) const;
+	void ClearRenderTarget(const Texture& renderTarget, Float4 color) const;
+	void ClearDepthStencil(const Texture& depthStencil) const;
 
-	void SetGraphicsPipeline(GraphicsPipelineHandle* handle);
+	void SetGraphicsPipeline(GraphicsPipeline* graphicsPipeline);
 
-	void SetVertexBuffer(const BufferHandle& handle, usize slot) const;
+	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot) const;
+	void SetConstantBuffer(StringView name, const Buffer& constantBuffer, usize offsetIndex = 0) const;
+	void SetBuffer(StringView name, const Buffer& buffer) const;
 
-	void SetConstantBuffer(StringView name, const BufferHandle& handle, usize offsetIndex = 0) const;
-	void SetBuffer(StringView name, const BufferHandle& handle) const;
-
-	void SetTexture(StringView name, const TextureHandle& handle) const;
-	void SetSampler(StringView name, const SamplerHandle& handle) const;
+	void SetTexture(StringView name, const Texture& texture) const;
+	void SetSampler(StringView name, const Sampler& sampler) const;
 
 	void Draw(usize vertexCount) const;
 
 	void GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const;
-	void BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const BufferHandle& buffer) const;
-	void TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, BarrierPair<BarrierLayout> layout, const TextureHandle& handle) const;
+	void BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const Buffer& buffer) const;
+	void TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, BarrierPair<BarrierLayout> layout, const Texture& texture) const;
 
 private:
 	ID3D12GraphicsCommandList10* GetCommandList() const;
@@ -128,7 +127,7 @@ private:
 	ID3D12CommandAllocator* CommandAllocators[FramesInFlight];
 	ID3D12GraphicsCommandList10* CommandList;
 
-	GraphicsPipelineHandle* CurrentGraphicsPipeline;
+	GraphicsPipeline* CurrentGraphicsPipeline;
 
 	GpuDevice* Device;
 

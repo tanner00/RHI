@@ -8,7 +8,7 @@
 #include "Luft/Base.hpp"
 #include "Luft/NoCopy.hpp"
 
-class Buffer
+class D3D12Buffer
 {
 public:
 	BufferResource GetOnlyBufferResource() const
@@ -28,7 +28,7 @@ public:
 	BufferResource Resources[FramesInFlight];
 };
 
-class Texture
+class D3D12Texture
 {
 public:
 	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
@@ -37,26 +37,25 @@ public:
 	usize HeapIndices[static_cast<usize>(ViewType::Count)];
 };
 
-class Sampler
+struct D3D12Sampler
 {
-public:
 	usize HeapIndex;
 };
 
-struct Shader
+struct D3D12Shader
 {
 	IDxcBlob* Blob;
 	ID3D12ShaderReflection* Reflection;
 };
 
-struct GraphicsPipeline
+struct D3D12GraphicsPipeline
 {
 	HashTable<String, usize> Parameters;
 	ID3D12RootSignature* RootSignature;
 	ID3D12PipelineState* PipelineState;
 };
 
-template<typename T> requires IsSame<RemoveCvType<T>, BufferHandle>::Value || IsSame<RemoveCvType<T>, TextureHandle>::Value
+template<typename T> requires IsSame<RemoveCvType<T>, Buffer>::Value || IsSame<RemoveCvType<T>, Texture>::Value
 struct UploadPair
 {
 	ID3D12Resource2* Source;
@@ -69,24 +68,24 @@ public:
 	explicit GpuDevice(const Platform::Window* window);
 	~GpuDevice();
 
-	BufferHandle CreateBuffer(StringView name, const BufferDescription& description);
-	BufferHandle CreateBuffer(StringView name, const void* staticData, const BufferDescription& description);
-	TextureHandle CreateTexture(StringView name, BarrierLayout initialLayout, const TextureDescription& description, TextureResource existingResource = nullptr);
-	SamplerHandle CreateSampler(const SamplerDescription& description);
-	ShaderHandle CreateShader(const ShaderDescription& description);
-	GraphicsPipelineHandle CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description);
+	Buffer CreateBuffer(StringView name, const BufferDescription& description);
+	Buffer CreateBuffer(StringView name, const void* staticData, const BufferDescription& description);
+	Texture CreateTexture(StringView name, BarrierLayout initialLayout, const TextureDescription& description, TextureResource existingResource = nullptr);
+	Sampler CreateSampler(const SamplerDescription& description);
+	Shader CreateShader(const ShaderDescription& description);
+	GraphicsPipeline CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description);
 
-	void DestroyBuffer(BufferHandle* handle);
-	void DestroyTexture(TextureHandle* handle);
-	void DestroySampler(SamplerHandle* handle);
-	void DestroyShader(ShaderHandle* handle);
-	void DestroyGraphicsPipeline(GraphicsPipelineHandle* handle);
+	void DestroyBuffer(Buffer* buffer);
+	void DestroyTexture(Texture* texture);
+	void DestroySampler(Sampler* sampler);
+	void DestroyShader(Shader* shader);
+	void DestroyGraphicsPipeline(GraphicsPipeline* graphicsPipeline);
 
 	GraphicsContext CreateGraphicsContext();
 
-	void Write(const BufferHandle& handle, const void* data);
-	void Write(const TextureHandle& handle, const void* data);
-	void WriteCubemap(const TextureHandle& handle, const Array<uint8*>& faces);
+	void Write(const Buffer& buffer, const void* data);
+	void Write(const Texture& texture, const void* data);
+	void WriteCubemap(const Texture& texture, const Array<uint8*>& faces);
 
 	void Submit(const GraphicsContext& context);
 	void Present();
@@ -102,9 +101,9 @@ private:
 	void ReleaseFrameDeletes();
 	void AddPendingDelete(IUnknown* pendingDelete);
 
-	void EnsureShaderResourceView(const TextureHandle& handle);
-	void EnsureRenderTargetView(const TextureHandle& handle);
-	void EnsureDepthStencilView(const TextureHandle& handle);
+	void EnsureShaderResourceView(const Texture& texture);
+	void EnsureRenderTargetView(const Texture& texture);
+	void EnsureDepthStencilView(const Texture& texture);
 
 	ID3D12Device11* GetDevice() const;
 	IDXGISwapChain4* GetSwapChain() const;
@@ -123,15 +122,15 @@ private:
 	ID3D12GraphicsCommandList10* UploadCommandList;
 
 	usize HandleIndex;
-	HashTable<usize, Buffer> Buffers;
-	HashTable<usize, Texture> Textures;
-	HashTable<usize, Sampler> Samplers;
-	HashTable<usize, Shader> Shaders;
-	HashTable<usize, GraphicsPipeline> GraphicsPipelines;
+	HashTable<usize, D3D12Buffer> Buffers;
+	HashTable<usize, D3D12Texture> Textures;
+	HashTable<usize, D3D12Sampler> Samplers;
+	HashTable<usize, D3D12Shader> Shaders;
+	HashTable<usize, D3D12GraphicsPipeline> GraphicsPipelines;
 
 	Array<Array<IUnknown*>> PendingDeletes;
-	Array<UploadPair<BufferHandle>> PendingBufferUploads;
-	Array<UploadPair<TextureHandle>> PendingTextureUploads;
+	Array<UploadPair<Buffer>> PendingBufferUploads;
+	Array<UploadPair<Texture>> PendingTextureUploads;
 
 	ViewHeap ConstantBufferShaderResourceUnorderedAccessViewHeap;
 	ViewHeap RenderTargetViewHeap;

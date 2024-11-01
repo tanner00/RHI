@@ -99,11 +99,11 @@ DECLARE_RHI_HANDLE(GraphicsPipeline);
 #define RHI_HANDLE(name) RhiHandle<name##Tag>
 
 #define RHI_HANDLE_BODY(name)												\
-	name##Handle(usize HandleValue, const name##Description& description)	\
+	name(usize HandleValue, const name##Description& description)			\
 		: RhiHandle { HandleValue }											\
 		, Description(description)											\
 	{}																		\
-	name##Handle() : RhiHandle { 0 } {}
+	name() : RhiHandle { 0 } {}
 
 enum class BufferType
 {
@@ -127,7 +127,7 @@ struct BufferDescription
 	usize Stride;
 };
 
-class BufferHandle final : public RHI_HANDLE(Buffer)
+class Buffer final : public RHI_HANDLE(Buffer)
 {
 public:
 	RHI_HANDLE_BODY(Buffer);
@@ -175,7 +175,7 @@ struct TextureDescription
 	bool RenderTarget;
 };
 
-class TextureHandle final : public RHI_HANDLE(Texture)
+class Texture final : public RHI_HANDLE(Texture)
 {
 public:
 	RHI_HANDLE_BODY(Texture);
@@ -215,7 +215,7 @@ struct SamplerDescription
 	Float4 BorderFilterColor;
 };
 
-class SamplerHandle final : public RHI_HANDLE(Sampler)
+class Sampler final : public RHI_HANDLE(Sampler)
 {
 public:
 	RHI_HANDLE_BODY(Sampler);
@@ -249,7 +249,7 @@ struct ShaderDescription
 	StringView FilePath;
 };
 
-class ShaderHandle final : public RHI_HANDLE(Shader)
+class Shader final : public RHI_HANDLE(Shader)
 {
 public:
 	RHI_HANDLE_BODY(Shader);
@@ -261,7 +261,7 @@ private:
 	ShaderDescription Description;
 };
 
-class ShaderStages : public HashTable<ShaderStage, ShaderHandle>
+class ShaderStages : public HashTable<ShaderStage, Shader>
 {
 public:
 	ShaderStages()
@@ -269,10 +269,10 @@ public:
 	{
 	}
 
-	void AddStage(const ShaderHandle& handle)
+	void AddStage(const Shader& shader)
 	{
-		CHECK(!Contains(handle.GetStage()));
-		Add(handle.GetStage(), handle);
+		CHECK(!Contains(shader.GetStage()));
+		Add(shader.GetStage(), shader);
 	}
 };
 
@@ -284,15 +284,14 @@ struct GraphicsPipelineDescription
 	bool AlphaBlend;
 };
 
-class GraphicsPipelineHandle final : public RHI_HANDLE(GraphicsPipeline)
+class GraphicsPipeline final : public RHI_HANDLE(GraphicsPipeline)
 {
 public:
 	RHI_HANDLE_BODY(GraphicsPipeline);
 
 	usize GetStageCount() const { return Description.Stages.GetCount(); }
 	bool HasShaderStage(ShaderStage stage) const { return Description.Stages.Contains(stage); }
-
-	ShaderHandle GetShaderStage(ShaderStage stage) const { return Description.Stages[stage]; }
+	Shader GetShaderStage(ShaderStage stage) const { return Description.Stages[stage]; }
 
 	TextureFormat GetRenderTargetFormat() const { return Description.RenderTargetFormat; }
 	TextureFormat GetDepthFormat() const { return Description.DepthFormat; }

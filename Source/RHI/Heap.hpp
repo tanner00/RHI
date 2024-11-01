@@ -21,7 +21,7 @@ public:
 	void Destroy();
 
 	BufferResource AllocateBuffer(usize size, StringView name);
-	TextureResource AllocateTexture(const TextureHandle& handle, BarrierLayout initialLayout, StringView name);
+	TextureResource AllocateTexture(const Texture& texture, BarrierLayout initialLayout, StringView name);
 
 private:
 	ID3D12Heap1* Heap;
