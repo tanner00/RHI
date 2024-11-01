@@ -8,16 +8,9 @@
 #include "Luft/Base.hpp"
 #include "Luft/NoCopy.hpp"
 
-namespace Platform
-{
-struct Window;
-}
-
 class Buffer
 {
 public:
-	BufferResource Resources[FramesInFlight];
-
 	BufferResource GetOnlyBufferResource() const
 	{
 		CHECK(Resources[0] && !Resources[1]);
@@ -31,15 +24,17 @@ public:
 		CHECK(current);
 		return current;
 	}
+
+	BufferResource Resources[FramesInFlight];
 };
 
 class Texture
 {
 public:
+	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
+
 	TextureResource Resource;
 	usize HeapIndices[static_cast<usize>(ViewType::Count)];
-
-	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
 };
 
 class Sampler
@@ -81,11 +76,11 @@ public:
 	ShaderHandle CreateShader(const ShaderDescription& description);
 	GraphicsPipelineHandle CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description);
 
-	void DestroyBuffer(BufferHandle& handle);
-	void DestroyTexture(TextureHandle& handle);
-	void DestroySampler(SamplerHandle& handle);
-	void DestroyShader(ShaderHandle& handle);
-	void DestroyGraphicsPipeline(GraphicsPipelineHandle& handle);
+	void DestroyBuffer(BufferHandle* handle);
+	void DestroyTexture(TextureHandle* handle);
+	void DestroySampler(SamplerHandle* handle);
+	void DestroyShader(ShaderHandle* handle);
+	void DestroyGraphicsPipeline(GraphicsPipelineHandle* handle);
 
 	GraphicsContext CreateGraphicsContext();
 

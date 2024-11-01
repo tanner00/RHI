@@ -106,7 +106,7 @@ public:
 	void ClearRenderTarget(const TextureHandle& handle, Float4 color) const;
 	void ClearDepthStencil(const TextureHandle& handle) const;
 
-	void SetGraphicsPipeline(GraphicsPipelineHandle& pipeline);
+	void SetGraphicsPipeline(GraphicsPipelineHandle* handle);
 
 	void SetVertexBuffer(const BufferHandle& handle, usize slot) const;
 
@@ -120,7 +120,7 @@ public:
 
 	void GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const;
 	void BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const BufferHandle& buffer) const;
-	void TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, BarrierPair<BarrierLayout> layout, const TextureHandle& texture) const;
+	void TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, BarrierPair<BarrierLayout> layout, const TextureHandle& handle) const;
 
 private:
 	ID3D12GraphicsCommandList10* GetCommandList() const;

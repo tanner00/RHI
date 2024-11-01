@@ -297,7 +297,7 @@ BufferHandle GpuDevice::CreateBuffer(StringView name, const void* staticData, co
 	const BufferHandle handle = CreateBuffer(name, description);
 	CHECK(handle.IsStatic());
 
-	BufferResource uploadResource = UploadHeap.AllocateBuffer(handle.GetSize(), "Upload [Buffer]"_view);
+	const BufferResource uploadResource = UploadHeap.AllocateBuffer(handle.GetSize(), "Upload [Buffer]"_view);
 	PendingBufferUploads.Add({ uploadResource, handle });
 
 	void* mapped = nullptr;
@@ -555,75 +555,71 @@ GraphicsPipelineHandle GpuDevice::CreateGraphicsPipeline(StringView name, const 
 	return handle;
 }
 
-void GpuDevice::DestroyBuffer(BufferHandle& handle)
+void GpuDevice::DestroyBuffer(BufferHandle* handle)
 {
-	if (!handle.IsValid())
+	if (!handle->IsValid())
 	{
 		return;
 	}
 
-	for (const BufferResource resource : Buffers[handle.Get()].Resources)
+	for (const BufferResource resource : Buffers[handle->Get()].Resources)
 	{
 		AddPendingDelete(resource);
 	}
-	Buffers.Remove(handle.Get());
-
-	handle.Reset();
+	Buffers.Remove(handle->Get());
+	handle->Reset();
 }
 
-void GpuDevice::DestroyTexture(TextureHandle& handle)
+void GpuDevice::DestroyTexture(TextureHandle* handle)
 {
-	if (!handle.IsValid())
+	if (!handle->IsValid())
 	{
 		return;
 	}
 
-	const Texture& texture = Textures[handle.Get()];
+	const Texture& texture = Textures[handle->Get()];
 	AddPendingDelete(texture.Resource);
-	Textures.Remove(handle.Get());
-
-	handle.Reset();
+	Textures.Remove(handle->Get());
+	handle->Reset();
 }
 
-void GpuDevice::DestroySampler(SamplerHandle& handle)
+void GpuDevice::DestroySampler(SamplerHandle* handle)
 {
-	if (!handle.IsValid())
+	if (!handle->IsValid())
 	{
 		return;
 	}
 
-	Samplers.Remove(handle.Get());
-
-	handle.Reset();
+	Samplers.Remove(handle->Get());
+	handle->Reset();
 }
 
-void GpuDevice::DestroyShader(ShaderHandle& handle)
+void GpuDevice::DestroyShader(ShaderHandle* handle)
 {
-	if (!handle.IsValid())
+	if (!handle->IsValid())
 	{
 		return;
 	}
 
-	const Shader& shader = Shaders[handle.Get()];
+	const Shader& shader = Shaders[handle->Get()];
 	AddPendingDelete(shader.Blob);
 	AddPendingDelete(shader.Reflection);
-	Shaders.Remove(handle.Get());
-
-	handle.Reset();
+	Shaders.Remove(handle->Get());
+	handle->Reset();
 }
 
-void GpuDevice::DestroyGraphicsPipeline(GraphicsPipelineHandle& handle)
+void GpuDevice::DestroyGraphicsPipeline(GraphicsPipelineHandle* handle)
 {
-	if (!handle.IsValid())
+	if (!handle->IsValid())
 	{
 		return;
 	}
 
-	const GraphicsPipeline& pipeline = GraphicsPipelines[handle.Get()];
+	const GraphicsPipeline& pipeline = GraphicsPipelines[handle->Get()];
 	AddPendingDelete(pipeline.PipelineState);
 	AddPendingDelete(pipeline.RootSignature);
-	GraphicsPipelines.Remove(handle.Get());
-	handle.Reset();
+	GraphicsPipelines.Remove(handle->Get());
+	handle->Reset();
 }
 
 GraphicsContext GpuDevice::CreateGraphicsContext()
