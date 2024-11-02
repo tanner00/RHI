@@ -353,9 +353,9 @@ GpuDevice::~GpuDevice()
 Buffer GpuDevice::CreateBuffer(StringView name, const BufferDescription& description)
 {
 	const Buffer buffer = { HandleIndex++, description };
-	D3D12Buffer apiBuffer = {};
-
 	CHECK(buffer.GetSize() != 0);
+
+	D3D12Buffer apiBuffer = {};
 
 	const usize resourceCount = buffer.IsStream() ? FramesInFlight : 1;
 	for (usize i = 0; i < resourceCount; ++i)
@@ -394,27 +394,20 @@ Buffer GpuDevice::CreateBuffer(StringView name, const void* staticData, const Bu
 Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, const TextureDescription& description, TextureResource existingResource)
 {
 	const Texture texture = { HandleIndex++, description };
-	D3D12Texture apiTexture = {};
 
-	if (existingResource)
+	Textures.Add(texture, D3D12Texture
 	{
-		apiTexture.Resource = existingResource;
-	}
-	else
-	{
-		apiTexture.Resource = AllocateTexture(Device, texture, initialLayout, name);
-	}
-	Textures.Add(texture, Move(apiTexture));
+		.Resource = existingResource ? existingResource : AllocateTexture(Device, texture, initialLayout, name),
+		.HeapIndices = {},
+	});
 	return texture;
 }
 
 Sampler GpuDevice::CreateSampler(const SamplerDescription& description)
 {
 	const Sampler sampler = { HandleIndex++, description };
-	D3D12Sampler apiSampler = {};
 
 	const usize heapIndex = SamplerViewHeap.AllocateIndex();
-	apiSampler.HeapIndex = heapIndex;
 
 	const D3D12_SAMPLER_DESC2 samplerDescription =
 	{
@@ -438,16 +431,18 @@ Sampler GpuDevice::CreateSampler(const SamplerDescription& description)
 	};
 	Device->CreateSampler2(&samplerDescription, D3D12_CPU_DESCRIPTOR_HANDLE { SamplerViewHeap.GetCpu(heapIndex) });
 
-	Samplers.Add(sampler, Move(apiSampler));
+	Samplers.Add(sampler, D3D12Sampler
+	{
+		.HeapIndex = heapIndex,
+	});
 	return sampler;
 }
 
 Shader GpuDevice::CreateShader(const ShaderDescription& description)
 {
 	const Shader shader = { HandleIndex++, description };
-	D3D12Shader apiShader = Dxc::CompileShader(shader.GetStage(), shader.GetFilePath());
 
-	Shaders.Add(shader, Move(apiShader));
+	Shaders.Add(shader, Dxc::CompileShader(shader.GetStage(), shader.GetFilePath()));
 	return shader;
 }
 
@@ -627,13 +622,12 @@ GraphicsPipeline GpuDevice::CreateGraphicsPipeline(StringView name, const Graphi
 #else
 	(void)name;
 #endif
-	D3D12GraphicsPipeline apiGraphicsPipeline =
+	GraphicsPipelines.Add(graphicsPipeline, D3D12GraphicsPipeline
 	{
 		.Parameters = Move(parameters),
 		.RootSignature = rootSignature,
 		.PipelineState = pipelineState,
-	};
-	GraphicsPipelines.Add(graphicsPipeline, Move(apiGraphicsPipeline));
+	});
 	return graphicsPipeline;
 }
 
