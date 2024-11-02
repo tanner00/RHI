@@ -1,35 +1,9 @@
 #pragma once
 
-#include "GraphicsContext.hpp"
 #include "Common.hpp"
 
 #include "Luft/Base.hpp"
 #include "Luft/NoCopy.hpp"
-
-enum class GpuHeapType
-{
-	Default,
-	Upload,
-};
-
-class GpuHeap : public NoCopy
-{
-public:
-	GpuHeap() = default;
-
-	void Create(usize size, GpuHeapType type, GpuDevice* device);
-	void Destroy();
-
-	BufferResource AllocateBuffer(usize size, StringView name);
-	TextureResource AllocateTexture(const Texture& texture, BarrierLayout initialLayout, StringView name);
-
-private:
-	ID3D12Heap1* Heap;
-	usize Size;
-	usize Offset;
-
-	GpuDevice* Device;
-};
 
 enum class ViewHeapType
 {

@@ -2,7 +2,7 @@
 
 #include "Common.hpp"
 #include "GraphicsContext.hpp"
-#include "Heap.hpp"
+#include "ViewHeap.hpp"
 
 #include "Luft/Array.hpp"
 #include "Luft/Base.hpp"
@@ -137,10 +137,6 @@ private:
 	ViewHeap DepthStencilViewHeap;
 	ViewHeap SamplerViewHeap;
 
-	GpuHeap DefaultHeap;
-	GpuHeap UploadHeap;
-
 	friend ViewHeap;
 	friend GraphicsContext;
-	friend GpuHeap;
 };
