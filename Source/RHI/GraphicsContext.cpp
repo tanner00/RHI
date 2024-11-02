@@ -151,6 +151,20 @@ void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot) co
 	CommandList->IASetVertexBuffers(static_cast<uint32>(slot), 1, &view);
 }
 
+void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer) const
+{
+	const BufferResource resource = Device->Buffers[indexBuffer.Get()].GetBufferResource(Device->GetFrameIndex(), indexBuffer.IsStream());
+
+	CHECK(indexBuffer.GetStride() == 2 || indexBuffer.GetStride() == 4);
+	const D3D12_INDEX_BUFFER_VIEW view =
+	{
+		.BufferLocation = resource->GetGPUVirtualAddress(),
+		.SizeInBytes = static_cast<uint32>(indexBuffer.GetSize()),
+		.Format = indexBuffer.GetStride() == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
+	};
+	CommandList->IASetIndexBuffer(&view);
+}
+
 void GraphicsContext::SetConstantBuffer(StringView name, const Buffer& constantBuffer, usize offsetIndex) const
 {
 	CHECK(CurrentGraphicsPipeline);
@@ -224,6 +238,12 @@ void GraphicsContext::Draw(usize vertexCount) const
 {
 	CHECK(CurrentGraphicsPipeline);
 	CommandList->DrawInstanced(static_cast<uint32>(vertexCount), 1, 0, 0);
+}
+
+void GraphicsContext::DrawIndexed(usize indexCount) const
+{
+	CHECK(CurrentGraphicsPipeline);
+	CommandList->DrawIndexedInstanced(static_cast<uint32>(indexCount), 1, 0, 0, 0);
 }
 
 void GraphicsContext::GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const
