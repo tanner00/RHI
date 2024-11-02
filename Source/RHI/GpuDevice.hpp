@@ -1,59 +1,16 @@
 #pragma once
 
+#include "Buffer.hpp"
 #include "Common.hpp"
 #include "GraphicsContext.hpp"
+#include "GraphicsPipeline.hpp"
+#include "Sampler.hpp"
+#include "Shader.hpp"
 #include "ViewHeap.hpp"
 
 #include "Luft/Array.hpp"
 #include "Luft/Base.hpp"
 #include "Luft/NoCopy.hpp"
-
-class D3D12Buffer
-{
-public:
-	BufferResource GetOnlyBufferResource() const
-	{
-		CHECK(Resources[0] && !Resources[1]);
-		return Resources[0];
-	}
-
-	BufferResource GetBufferResource(usize index, bool stream) const
-	{
-		CHECK(index < FramesInFlight);
-		const BufferResource current = stream ? Resources[index] : Resources[0];
-		CHECK(current);
-		return current;
-	}
-
-	BufferResource Resources[FramesInFlight];
-};
-
-class D3D12Texture
-{
-public:
-	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
-
-	TextureResource Resource;
-	usize HeapIndices[static_cast<usize>(ViewType::Count)];
-};
-
-struct D3D12Sampler
-{
-	usize HeapIndex;
-};
-
-struct D3D12Shader
-{
-	IDxcBlob* Blob;
-	ID3D12ShaderReflection* Reflection;
-};
-
-struct D3D12GraphicsPipeline
-{
-	HashTable<String, usize> Parameters;
-	ID3D12RootSignature* RootSignature;
-	ID3D12PipelineState* PipelineState;
-};
 
 template<typename T> requires IsSame<RemoveCvType<T>, Buffer>::Value || IsSame<RemoveCvType<T>, Texture>::Value
 struct UploadPair
@@ -122,11 +79,11 @@ private:
 	ID3D12GraphicsCommandList10* UploadCommandList;
 
 	usize HandleIndex;
-	HashTable<usize, D3D12Buffer> Buffers;
-	HashTable<usize, D3D12Texture> Textures;
-	HashTable<usize, D3D12Sampler> Samplers;
-	HashTable<usize, D3D12Shader> Shaders;
-	HashTable<usize, D3D12GraphicsPipeline> GraphicsPipelines;
+	HashTable<Buffer, D3D12Buffer> Buffers;
+	HashTable<Texture, D3D12Texture> Textures;
+	HashTable<Sampler, D3D12Sampler> Samplers;
+	HashTable<Shader, D3D12Shader> Shaders;
+	HashTable<GraphicsPipeline, D3D12GraphicsPipeline> GraphicsPipelines;
 
 	Array<Array<IUnknown*>> PendingDeletes;
 	Array<UploadPair<Buffer>> PendingBufferUploads;

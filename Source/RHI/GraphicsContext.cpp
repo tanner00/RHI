@@ -80,7 +80,7 @@ void GraphicsContext::SetRenderTarget(const Texture& renderTarget) const
 {
 	Device->EnsureRenderTargetView(renderTarget);
 
-	const usize heapIndex = Device->Textures[renderTarget.Get()].HeapIndices[static_cast<usize>(ViewType::RenderTarget)];
+	const usize heapIndex = Device->Textures[renderTarget].HeapIndices[static_cast<usize>(ViewType::RenderTarget)];
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->RenderTargetViewHeap.GetCpu(heapIndex) };
 
 	CommandList->OMSetRenderTargets(1, &cpu, true, nullptr);
@@ -91,9 +91,9 @@ void GraphicsContext::SetRenderTarget(const Texture& renderTarget, const Texture
 	Device->EnsureRenderTargetView(renderTarget);
 	Device->EnsureDepthStencilView(depthStencil);
 
-	const usize renderTargetHeapIndex = Device->Textures[renderTarget.Get()].HeapIndices[static_cast<usize>(ViewType::RenderTarget)];
+	const usize renderTargetHeapIndex = Device->Textures[renderTarget].HeapIndices[static_cast<usize>(ViewType::RenderTarget)];
 	const D3D12_CPU_DESCRIPTOR_HANDLE renderTargetCpu = { Device->RenderTargetViewHeap.GetCpu(renderTargetHeapIndex) };
-	const usize depthStencilHeapIndex = Device->Textures[depthStencil.Get()].HeapIndices[static_cast<usize>(ViewType::DepthStencil)];
+	const usize depthStencilHeapIndex = Device->Textures[depthStencil].HeapIndices[static_cast<usize>(ViewType::DepthStencil)];
 	const D3D12_CPU_DESCRIPTOR_HANDLE depthStencilCpu = { Device->DepthStencilViewHeap.GetCpu(depthStencilHeapIndex) };
 	CommandList->OMSetRenderTargets(1, &renderTargetCpu, true, &depthStencilCpu);
 }
@@ -102,7 +102,7 @@ void GraphicsContext::SetDepthRenderTarget(const Texture& depthStencil) const
 {
 	Device->EnsureDepthStencilView(depthStencil);
 
-	const usize heapIndex = Device->Textures[depthStencil.Get()].HeapIndices[static_cast<usize>(ViewType::DepthStencil)];
+	const usize heapIndex = Device->Textures[depthStencil].HeapIndices[static_cast<usize>(ViewType::DepthStencil)];
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->DepthStencilViewHeap.GetCpu(heapIndex) };
 	CommandList->OMSetRenderTargets(0, nullptr, true, &cpu);
 }
@@ -111,7 +111,7 @@ void GraphicsContext::ClearRenderTarget(const Texture& renderTarget, Float4 colo
 {
 	Device->EnsureRenderTargetView(renderTarget);
 
-	const usize heapIndex = Device->Textures[renderTarget.Get()].HeapIndices[static_cast<usize>(ViewType::RenderTarget)];
+	const usize heapIndex = Device->Textures[renderTarget].HeapIndices[static_cast<usize>(ViewType::RenderTarget)];
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->RenderTargetViewHeap.GetCpu(heapIndex) };
 	CommandList->ClearRenderTargetView(cpu, reinterpret_cast<const float*>(&color), 0, nullptr);
 }
@@ -120,7 +120,7 @@ void GraphicsContext::ClearDepthStencil(const Texture& depthStencil) const
 {
 	Device->EnsureDepthStencilView(depthStencil);
 
-	const usize heapIndex = Device->Textures[depthStencil.Get()].HeapIndices[static_cast<usize>(ViewType::DepthStencil)];
+	const usize heapIndex = Device->Textures[depthStencil].HeapIndices[static_cast<usize>(ViewType::DepthStencil)];
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->DepthStencilViewHeap.GetCpu(heapIndex) };
 
 	const D3D12_CLEAR_FLAGS clearFlag = IsStencilFormat(depthStencil.GetFormat()) ? (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL) : D3D12_CLEAR_FLAG_DEPTH;
@@ -129,7 +129,7 @@ void GraphicsContext::ClearDepthStencil(const Texture& depthStencil) const
 
 void GraphicsContext::SetGraphicsPipeline(GraphicsPipeline* graphicsPipeline)
 {
-	const D3D12GraphicsPipeline& apiGraphicsPipeline = Device->GraphicsPipelines[graphicsPipeline->Get()];
+	const D3D12GraphicsPipeline& apiGraphicsPipeline = Device->GraphicsPipelines[*graphicsPipeline];
 	CurrentGraphicsPipeline = graphicsPipeline;
 
 	CommandList->SetPipelineState(apiGraphicsPipeline.PipelineState);
@@ -140,7 +140,7 @@ void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot) co
 {
 	CHECK(vertexBuffer.GetType() == BufferType::VertexBuffer);
 
-	const BufferResource resource = Device->Buffers[vertexBuffer.Get()].GetBufferResource(Device->GetFrameIndex(), vertexBuffer.IsStream());
+	const BufferResource resource = Device->Buffers[vertexBuffer].GetBufferResource(Device->GetFrameIndex(), vertexBuffer.IsStream());
 
 	const D3D12_VERTEX_BUFFER_VIEW view =
 	{
@@ -153,7 +153,7 @@ void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot) co
 
 void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer) const
 {
-	const BufferResource resource = Device->Buffers[indexBuffer.Get()].GetBufferResource(Device->GetFrameIndex(), indexBuffer.IsStream());
+	const BufferResource resource = Device->Buffers[indexBuffer].GetBufferResource(Device->GetFrameIndex(), indexBuffer.IsStream());
 
 	CHECK(indexBuffer.GetStride() == 2 || indexBuffer.GetStride() == 4);
 	const D3D12_INDEX_BUFFER_VIEW view =
@@ -170,13 +170,13 @@ void GraphicsContext::SetConstantBuffer(StringView name, const Buffer& constantB
 	CHECK(CurrentGraphicsPipeline);
 	CHECK(constantBuffer.GetType() == BufferType::ConstantBuffer);
 
-	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[CurrentGraphicsPipeline->Get()];
+	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[*CurrentGraphicsPipeline];
 	CHECK(currentPipeline.Parameters.Contains(name));
 
 	CHECK(offsetIndex < constantBuffer.GetCount());
 
 	const usize offset = offsetIndex * constantBuffer.GetStride();
-	const usize gpuAddress = Device->Buffers[constantBuffer.Get()].GetBufferResource(Device->GetFrameIndex(), constantBuffer.IsStream())->GetGPUVirtualAddress() + offset;
+	const usize gpuAddress = Device->Buffers[constantBuffer].GetBufferResource(Device->GetFrameIndex(), constantBuffer.IsStream())->GetGPUVirtualAddress() + offset;
 	CommandList->SetGraphicsRootConstantBufferView
 	(
 		static_cast<uint32>(currentPipeline.Parameters[name]),
@@ -189,10 +189,10 @@ void GraphicsContext::SetBuffer(StringView name, const Buffer& buffer) const
 	CHECK(CurrentGraphicsPipeline);
 	CHECK(buffer.GetType() == BufferType::StructuredBuffer);
 
-	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[CurrentGraphicsPipeline->Get()];
+	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[*CurrentGraphicsPipeline];
 	CHECK(currentPipeline.Parameters.Contains(name));
 
-	const usize gpuAddress = Device->Buffers[buffer.Get()].GetBufferResource(Device->GetFrameIndex(), buffer.IsStream())->GetGPUVirtualAddress();
+	const usize gpuAddress = Device->Buffers[buffer].GetBufferResource(Device->GetFrameIndex(), buffer.IsStream())->GetGPUVirtualAddress();
 	CommandList->SetGraphicsRootShaderResourceView
 	(
 		static_cast<uint32>(currentPipeline.Parameters[name]),
@@ -204,12 +204,12 @@ void GraphicsContext::SetTexture(StringView name, const Texture& texture) const
 {
 	CHECK(CurrentGraphicsPipeline);
 
-	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[CurrentGraphicsPipeline->Get()];
+	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[*CurrentGraphicsPipeline];
 	CHECK(currentPipeline.Parameters.Contains(name));
 
 	Device->EnsureShaderResourceView(texture);
 
-	const usize textureHeapIndex = Device->Textures[texture.Get()].HeapIndices[static_cast<usize>(ViewType::ShaderResource)];
+	const usize textureHeapIndex = Device->Textures[texture].HeapIndices[static_cast<usize>(ViewType::ShaderResource)];
 	const usize gpu = Device->ConstantBufferShaderResourceUnorderedAccessViewHeap.GetGpu(textureHeapIndex);
 	CommandList->SetGraphicsRootDescriptorTable
 	(
@@ -222,10 +222,10 @@ void GraphicsContext::SetSampler(StringView name, const Sampler& sampler) const
 {
 	CHECK(CurrentGraphicsPipeline);
 
-	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[CurrentGraphicsPipeline->Get()];
+	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[*CurrentGraphicsPipeline];
 	CHECK(currentPipeline.Parameters.Contains(name));
 
-	const usize heapIndex = Device->Samplers[sampler.Get()].HeapIndex;
+	const usize heapIndex = Device->Samplers[sampler].HeapIndex;
 	const usize gpu = Device->SamplerViewHeap.GetGpu(heapIndex);
 	CommandList->SetGraphicsRootDescriptorTable
 	(
@@ -272,7 +272,7 @@ void GraphicsContext::BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair
 		.SyncAfter = ToD3D12(stage.After),
 		.AccessBefore = ToD3D12(access.Before),
 		.AccessAfter = ToD3D12(access.After),
-		.pResource = Device->Buffers[buffer.Get()].GetBufferResource(Device->GetFrameIndex(), buffer.IsStream()),
+		.pResource = Device->Buffers[buffer].GetBufferResource(Device->GetFrameIndex(), buffer.IsStream()),
 		.Offset = 0,
 		.Size = buffer.GetSize(),
 	};
@@ -305,7 +305,7 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPai
 		.AccessAfter = ToD3D12(access.After),
 		.LayoutBefore = ToD3D12(layout.Before),
 		.LayoutAfter = ToD3D12(layout.After),
-		.pResource = Device->Textures[texture.Get()].GetTextureResource(),
+		.pResource = Device->Textures[texture].GetTextureResource(),
 		.Subresources = entireRange,
 		.Flags = noDiscard,
 	};

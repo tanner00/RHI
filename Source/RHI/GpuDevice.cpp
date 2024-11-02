@@ -370,7 +370,7 @@ Buffer GpuDevice::CreateBuffer(StringView name, const BufferDescription& descrip
 		}
 	}
 
-	Buffers.Add(buffer.Get(), Move(apiBuffer));
+	Buffers.Add(buffer, Move(apiBuffer));
 	return buffer;
 }
 
@@ -404,7 +404,7 @@ Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, c
 	{
 		apiTexture.Resource = AllocateTexture(Device, texture, initialLayout, name);
 	}
-	Textures.Add(texture.Get(), Move(apiTexture));
+	Textures.Add(texture, Move(apiTexture));
 	return texture;
 }
 
@@ -436,9 +436,9 @@ Sampler GpuDevice::CreateSampler(const SamplerDescription& description)
 		.MaxLOD = D3D12_FLOAT32_MAX,
 		.Flags = D3D12_SAMPLER_FLAG_NONE,
 	};
-	Device->CreateSampler2(&samplerDescription, D3D12_CPU_DESCRIPTOR_HANDLE {SamplerViewHeap.GetCpu(heapIndex) });
+	Device->CreateSampler2(&samplerDescription, D3D12_CPU_DESCRIPTOR_HANDLE { SamplerViewHeap.GetCpu(heapIndex) });
 
-	Samplers.Add(sampler.Get(), Move(apiSampler));
+	Samplers.Add(sampler, Move(apiSampler));
 	return sampler;
 }
 
@@ -447,7 +447,7 @@ Shader GpuDevice::CreateShader(const ShaderDescription& description)
 	const Shader shader = { HandleIndex++, description };
 	D3D12Shader apiShader = Dxc::CompileShader(shader.GetStage(), shader.GetFilePath());
 
-	Shaders.Add(shader.Get(), Move(apiShader));
+	Shaders.Add(shader, Move(apiShader));
 	return shader;
 }
 
@@ -472,8 +472,8 @@ GraphicsPipeline GpuDevice::CreateGraphicsPipeline(StringView name, const Graphi
 		CHECK(graphicsPipeline.GetStageCount() == 1);
 	}
 
-	const D3D12Shader* vertex = &Shaders[graphicsPipeline.GetShaderStage(ShaderStage::Vertex).Get()];
-	const D3D12Shader* pixel = usesPixelShader ? &Shaders[graphicsPipeline.GetShaderStage(ShaderStage::Pixel).Get()] : nullptr;
+	const D3D12Shader* vertex = &Shaders[graphicsPipeline.GetShaderStage(ShaderStage::Vertex)];
+	const D3D12Shader* pixel = usesPixelShader ? &Shaders[graphicsPipeline.GetShaderStage(ShaderStage::Pixel)] : nullptr;
 
 	Array<D3D12_INPUT_ELEMENT_DESC> inputElements;
 	Dxc::ReflectInputElements(vertex->Reflection, inputElements);
@@ -633,7 +633,7 @@ GraphicsPipeline GpuDevice::CreateGraphicsPipeline(StringView name, const Graphi
 		.RootSignature = rootSignature,
 		.PipelineState = pipelineState,
 	};
-	GraphicsPipelines.Add(graphicsPipeline.Get(), Move(apiGraphicsPipeline));
+	GraphicsPipelines.Add(graphicsPipeline, Move(apiGraphicsPipeline));
 	return graphicsPipeline;
 }
 
@@ -644,11 +644,11 @@ void GpuDevice::DestroyBuffer(Buffer* buffer)
 		return;
 	}
 
-	for (const BufferResource resource : Buffers[buffer->Get()].Resources)
+	for (const BufferResource resource : Buffers[*buffer].Resources)
 	{
 		AddPendingDelete(resource);
 	}
-	Buffers.Remove(buffer->Get());
+	Buffers.Remove(*buffer);
 	buffer->Reset();
 }
 
@@ -659,9 +659,9 @@ void GpuDevice::DestroyTexture(Texture* texture)
 		return;
 	}
 
-	const D3D12Texture& apiTexture = Textures[texture->Get()];
+	const D3D12Texture& apiTexture = Textures[*texture];
 	AddPendingDelete(apiTexture.Resource);
-	Textures.Remove(texture->Get());
+	Textures.Remove(*texture);
 	texture->Reset();
 }
 
@@ -672,7 +672,7 @@ void GpuDevice::DestroySampler(Sampler* sampler)
 		return;
 	}
 
-	Samplers.Remove(sampler->Get());
+	Samplers.Remove(*sampler);
 	sampler->Reset();
 }
 
@@ -683,10 +683,10 @@ void GpuDevice::DestroyShader(Shader* shader)
 		return;
 	}
 
-	const D3D12Shader& apiShader = Shaders[shader->Get()];
+	const D3D12Shader& apiShader = Shaders[*shader];
 	AddPendingDelete(apiShader.Blob);
 	AddPendingDelete(apiShader.Reflection);
-	Shaders.Remove(shader->Get());
+	Shaders.Remove(*shader);
 	shader->Reset();
 }
 
@@ -697,10 +697,10 @@ void GpuDevice::DestroyGraphicsPipeline(GraphicsPipeline* graphicsPipeline)
 		return;
 	}
 
-	const D3D12GraphicsPipeline& apiGraphicsPipeline = GraphicsPipelines[graphicsPipeline->Get()];
+	const D3D12GraphicsPipeline& apiGraphicsPipeline = GraphicsPipelines[*graphicsPipeline];
 	AddPendingDelete(apiGraphicsPipeline.PipelineState);
 	AddPendingDelete(apiGraphicsPipeline.RootSignature);
-	GraphicsPipelines.Remove(graphicsPipeline->Get());
+	GraphicsPipelines.Remove(*graphicsPipeline);
 	graphicsPipeline->Reset();
 }
 
@@ -711,7 +711,7 @@ GraphicsContext GpuDevice::CreateGraphicsContext()
 
 void GpuDevice::Write(const Buffer& buffer, const void* data)
 {
-	const D3D12Buffer& apiBuffer = Buffers[buffer.Get()];
+	const D3D12Buffer& apiBuffer = Buffers[buffer];
 
 	BufferResource resource = nullptr;
 	CHECK(!buffer.IsStatic());
@@ -842,7 +842,7 @@ void GpuDevice::Submit(const GraphicsContext& context)
 
 		for (const auto& [source, destination] : PendingTextureUploads)
 		{
-			const D3D12Texture& destinationTexture = Textures[destination.Get()];
+			const D3D12Texture& destinationTexture = Textures[destination];
 
 			for (usize subresourceIndex = 0; subresourceIndex < destination.GetCount(); ++subresourceIndex)
 			{
@@ -886,7 +886,7 @@ void GpuDevice::Submit(const GraphicsContext& context)
 
 		for (const auto& [source, destination] : PendingBufferUploads)
 		{
-			const D3D12Buffer& destinationBuffer = Buffers[destination.Get()];
+			const D3D12Buffer& destinationBuffer = Buffers[destination];
 			UploadCommandList->CopyResource(destinationBuffer.GetOnlyBufferResource(), source);
 
 			PendingDeletes[FrameIndex].Add(source);
@@ -996,7 +996,7 @@ void GpuDevice::EnsureShaderResourceView(const Texture& texture)
 {
 	static constexpr ViewType viewType = ViewType::ShaderResource;
 
-	D3D12Texture& apiTexture = Textures[texture.Get()];
+	D3D12Texture& apiTexture = Textures[texture];
 	if (apiTexture.HeapIndices[static_cast<usize>(viewType)])
 	{
 		return;
@@ -1053,7 +1053,7 @@ void GpuDevice::EnsureRenderTargetView(const Texture& texture)
 {
 	static constexpr ViewType viewType = ViewType::RenderTarget;
 
-	D3D12Texture& apiTexture = Textures[texture.Get()];
+	D3D12Texture& apiTexture = Textures[texture];
 	if (apiTexture.HeapIndices[static_cast<usize>(viewType)])
 	{
 		return;
@@ -1083,7 +1083,7 @@ void GpuDevice::EnsureDepthStencilView(const Texture& texture)
 {
 	static constexpr ViewType viewType = ViewType::DepthStencil;
 
-	D3D12Texture& apiTexture = Textures[texture.Get()];
+	D3D12Texture& apiTexture = Textures[texture];
 	if (apiTexture.HeapIndices[static_cast<usize>(viewType)])
 	{
 		return;

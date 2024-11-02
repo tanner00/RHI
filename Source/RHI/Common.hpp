@@ -5,7 +5,6 @@
 #include "Luft/HashTable.hpp"
 
 #define UINT uint32
-#include "D3D12/dxgiformat.h"
 #include <dxgicommon.h>
 #undef UINT
 
@@ -21,48 +20,33 @@
 
 #define PAD(size) char TOKEN_PASTE(Pad, __LINE__) [(size)]
 
-struct Float2
-{
-	float X;
-	float Y;
-};
+class GpuDevice;
+class GraphicsContext;
+class Buffer;
+class GraphicsPipeline;
+class Sampler;
+class Shader;
+class Texture;
 
-struct Float3
-{
-	float X;
-	float Y;
-	float Z;
-};
-
-struct Float4
-{
-	float X;
-	float Y;
-	float Z;
-	float W;
-};
-
-enum class ViewType
-{
-	ConstantBuffer,
-	ShaderResource,
-	UnorderedAccess,
-	Sampler,
-	RenderTarget,
-	DepthStencil,
-	Count,
-};
-
+struct ID3D12CommandAllocator;
+struct ID3D12CommandQueue;
+struct ID3D12DescriptorHeap;
+struct ID3D12Device11;
+struct ID3D12GraphicsCommandList10;
+struct ID3D12Fence1;
+struct ID3D12Heap1;
+struct ID3D12PipelineState;
 struct ID3D12Resource2;
-using BufferResource = ID3D12Resource2*;
-using TextureResource = ID3D12Resource2*;
-
-using CpuView = usize;
-using GpuView = usize;
+struct ID3D12RootSignature;
+struct ID3D12ShaderReflection;
+struct IDXGISwapChain4;
+struct IDxcBlob;
+struct IUnknown;
 
 template<typename Tag>
-struct RhiHandle
+class RhiHandle
 {
+public:
 	explicit RhiHandle(usize value)
 		: Value(value)
 	{
@@ -75,7 +59,7 @@ struct RhiHandle
 
 	usize Get() const
 	{
-		CHECK(Value != 0);
+		CHECK(IsValid());
 		return Value;
 	}
 
@@ -105,200 +89,22 @@ DECLARE_RHI_HANDLE(GraphicsPipeline);
 	{}																		\
 	name() : RhiHandle { 0 } {}
 
-enum class BufferType
+enum class ViewType
 {
 	ConstantBuffer,
-	VertexBuffer,
-	StructuredBuffer,
-};
-
-enum class BufferUsage
-{
-	Static,
-	Dynamic,
-	Stream,
-};
-
-struct BufferDescription
-{
-	BufferType Type;
-	BufferUsage Usage;
-	usize Size;
-	usize Stride;
-};
-
-class Buffer final : public RHI_HANDLE(Buffer)
-{
-public:
-	RHI_HANDLE_BODY(Buffer);
-
-	usize GetSize() const { return Description.Size; }
-	usize GetStride() const { return Description.Stride; }
-	usize GetCount() const { return Description.Size / (Description.Stride ? Description.Stride : 1); }
-
-	BufferType GetType() const { return Description.Type; }
-
-	bool IsStatic() const { return Description.Usage == BufferUsage::Static; }
-	bool IsDynamic() const { return Description.Usage == BufferUsage::Dynamic; }
-	bool IsStream() const { return Description.Usage == BufferUsage::Stream; }
-
-private:
-	BufferDescription Description;
-};
-
-enum class TextureType
-{
-	Rectangle,
-	Cubemap,
-};
-
-enum class TextureFormat
-{
-	None,
-
-	Rgba8,
-	Rgba8Srgb,
-
-	Bc7,
-	Bc7Srgb,
-
-	Depth32,
-	Depth24Stencil8,
-};
-
-struct TextureDescription
-{
-	uint32 Width;
-	uint32 Height;
-	TextureType Type;
-	TextureFormat Format;
-	bool RenderTarget;
-};
-
-class Texture final : public RHI_HANDLE(Texture)
-{
-public:
-	RHI_HANDLE_BODY(Texture);
-
-	uint32 GetWidth() const { return Description.Width; }
-	uint32 GetHeight() const { return Description.Height; }
-	TextureFormat GetFormat() const { return Description.Format; }
-	TextureType GetType() const { return Description.Type; }
-
-	bool IsRenderTarget() const { return Description.RenderTarget; }
-
-	usize GetCount() const { return Description.Type == TextureType::Cubemap ? 6 : 1; }
-
-private:
-	TextureDescription Description;
-};
-
-enum class SamplerAddress
-{
-	Wrap,
-	Mirror,
-	Clamp,
-	Border,
-};
-
-enum class SamplerFilter
-{
-	Point,
-	Linear,
-	Anisotropic,
-};
-
-struct SamplerDescription
-{
-	SamplerAddress Address;
-	SamplerFilter Filter;
-	Float4 BorderFilterColor;
-};
-
-class Sampler final : public RHI_HANDLE(Sampler)
-{
-public:
-	RHI_HANDLE_BODY(Sampler);
-
-	SamplerAddress GetAddress() const { return Description.Address; }
-	SamplerFilter GetFilter() const { return Description.Filter; }
-
-private:
-	SamplerDescription Description;
-};
-
-enum class ShaderStage
-{
-	Vertex,
-	Pixel,
+	ShaderResource,
+	UnorderedAccess,
+	Sampler,
+	RenderTarget,
+	DepthStencil,
 	Count,
 };
 
-template<>
-struct Hash<ShaderStage>
-{
-	uint64 operator()(ShaderStage stage) const
-	{
-		return HashFnv1a(&stage, sizeof(stage));
-	}
-};
+using BufferResource = ID3D12Resource2*;
+using TextureResource = ID3D12Resource2*;
 
-struct ShaderDescription
-{
-	ShaderStage Stage;
-	StringView FilePath;
-};
-
-class Shader final : public RHI_HANDLE(Shader)
-{
-public:
-	RHI_HANDLE_BODY(Shader);
-
-	ShaderStage GetStage() const { return Description.Stage; }
-	StringView GetFilePath() const { return Description.FilePath; }
-
-private:
-	ShaderDescription Description;
-};
-
-class ShaderStages : public HashTable<ShaderStage, Shader>
-{
-public:
-	ShaderStages()
-		: HashTable(1, &GlobalAllocator::Get())
-	{
-	}
-
-	void AddStage(const Shader& shader)
-	{
-		CHECK(!Contains(shader.GetStage()));
-		Add(shader.GetStage(), shader);
-	}
-};
-
-struct GraphicsPipelineDescription
-{
-	ShaderStages Stages;
-	TextureFormat RenderTargetFormat;
-	TextureFormat DepthFormat;
-	bool AlphaBlend;
-};
-
-class GraphicsPipeline final : public RHI_HANDLE(GraphicsPipeline)
-{
-public:
-	RHI_HANDLE_BODY(GraphicsPipeline);
-
-	usize GetStageCount() const { return Description.Stages.GetCount(); }
-	bool HasShaderStage(ShaderStage stage) const { return Description.Stages.Contains(stage); }
-	Shader GetShaderStage(ShaderStage stage) const { return Description.Stages[stage]; }
-
-	TextureFormat GetRenderTargetFormat() const { return Description.RenderTargetFormat; }
-	TextureFormat GetDepthFormat() const { return Description.DepthFormat; }
-
-private:
-	GraphicsPipelineDescription Description;
-};
+using CpuView = usize;
+using GpuView = usize;
 
 enum class BarrierStage : uint32
 {
@@ -375,78 +181,26 @@ enum class BarrierLayout : uint32
 	Undefined = 0xFFFFFFFF,
 };
 
+struct Float2
+{
+	float X;
+	float Y;
+};
+
+struct Float3
+{
+	float X;
+	float Y;
+	float Z;
+};
+
+struct Float4
+{
+	float X;
+	float Y;
+	float Z;
+	float W;
+};
+
 inline constexpr uint32 FramesInFlight = 2;
 inline constexpr DXGI_SAMPLE_DESC DefaultSampleDescription = { 1, 0 };
-
-inline TextureFormat FromD3D12(DXGI_FORMAT format)
-{
-	switch (format)
-	{
-	case DXGI_FORMAT_UNKNOWN:
-		return TextureFormat::None;
-	case DXGI_FORMAT_R8G8B8A8_UNORM:
-		return TextureFormat::Rgba8;
-	case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
-		return TextureFormat::Rgba8Srgb;
-	case DXGI_FORMAT_BC7_UNORM:
-		return TextureFormat::Bc7;
-	case DXGI_FORMAT_BC7_UNORM_SRGB:
-		return TextureFormat::Bc7Srgb;
-	case DXGI_FORMAT_D24_UNORM_S8_UINT:
-		return TextureFormat::Depth24Stencil8;
-	case DXGI_FORMAT_D32_FLOAT:
-		return TextureFormat::Depth32;
-	}
-	CHECK(false);
-	return TextureFormat::None;
-}
-
-inline DXGI_FORMAT ToD3D12(TextureFormat format)
-{
-	switch (format)
-	{
-	case TextureFormat::None:
-		return DXGI_FORMAT_UNKNOWN;
-	case TextureFormat::Rgba8:
-		return DXGI_FORMAT_R8G8B8A8_UNORM;
-	case TextureFormat::Rgba8Srgb:
-		return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	case TextureFormat::Bc7:
-		return DXGI_FORMAT_BC7_UNORM;
-	case TextureFormat::Bc7Srgb:
-		return DXGI_FORMAT_BC7_UNORM_SRGB;
-	case TextureFormat::Depth24Stencil8:
-		return DXGI_FORMAT_D24_UNORM_S8_UINT;
-	case TextureFormat::Depth32:
-		return DXGI_FORMAT_D32_FLOAT;
-	}
-	CHECK(false);
-	return DXGI_FORMAT_UNKNOWN;
-}
-
-inline bool IsDepthFormat(TextureFormat format)
-{
-	return format == TextureFormat::Depth32 || format == TextureFormat::Depth24Stencil8;
-}
-
-inline bool IsStencilFormat(TextureFormat format)
-{
-	return format == TextureFormat::Depth24Stencil8;
-}
-
-class GpuDevice;
-class GraphicsContext;
-
-struct ID3D12CommandAllocator;
-struct ID3D12CommandQueue;
-struct ID3D12DescriptorHeap;
-struct ID3D12Device11;
-struct ID3D12GraphicsCommandList10;
-struct ID3D12Fence1;
-struct ID3D12Heap1;
-struct ID3D12PipelineState;
-struct ID3D12RootSignature;
-struct ID3D12ShaderReflection;
-struct IDXGISwapChain4;
-struct IDxcBlob;
-struct IUnknown;
