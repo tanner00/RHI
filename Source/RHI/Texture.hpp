@@ -66,9 +66,16 @@ inline bool operator==(const Texture& a, const Texture& b)
 	return a.Get() == b.Get();
 }
 
+TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name);
+
+void WriteTexture(ID3D12Device11* device, const Texture& texture, const void* data, Array<UploadPair<Texture>>* pendingTextureUploads);
+void WriteCubemapTexture(ID3D12Device11* device, const Texture& texture, const Array<uint8*>& faces, Array<UploadPair<Texture>>* pendingTextureUploads);
+
 class D3D12Texture
 {
 public:
+	D3D12Texture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, TextureResource existingResource, StringView name);
+
 	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
 
 	TextureResource Resource;
@@ -127,7 +134,3 @@ inline bool IsStencilFormat(TextureFormat format)
 {
 	return format == TextureFormat::Depth24Stencil8;
 }
-
-TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name);
-
-D3D12Texture CreateD3D12Texture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name, TextureResource existingResource);

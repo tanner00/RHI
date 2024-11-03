@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Buffer.hpp"
-#include "Common.hpp"
 #include "GraphicsContext.hpp"
 #include "GraphicsPipeline.hpp"
 #include "Sampler.hpp"
@@ -11,13 +10,6 @@
 #include "Luft/Array.hpp"
 #include "Luft/Base.hpp"
 #include "Luft/NoCopy.hpp"
-
-template<typename T> requires IsSame<RemoveCvType<T>, Buffer>::Value || IsSame<RemoveCvType<T>, Texture>::Value
-struct UploadPair
-{
-	ID3D12Resource2* Source;
-	T Destination;
-};
 
 class GpuDevice : public NoCopy
 {
@@ -55,6 +47,8 @@ public:
 	usize GetFrameIndex() const;
 
 private:
+	void FlushUploads();
+
 	void ReleaseFrameDeletes();
 	void AddPendingDelete(IUnknown* pendingDelete);
 
@@ -94,6 +88,5 @@ private:
 	ViewHeap DepthStencilViewHeap;
 	ViewHeap SamplerViewHeap;
 
-	friend ViewHeap;
 	friend GraphicsContext;
 };

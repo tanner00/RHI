@@ -25,7 +25,7 @@ void Shutdown()
 	SAFE_RELEASE(Compiler);
 }
 
-D3D12Shader CompileShader(ShaderStage stage, StringView filePath)
+static IDxcResult* CompileShader(ShaderStage stage, StringView filePath)
 {
 	CHECK(Compiler && Utils);
 
@@ -106,9 +106,16 @@ D3D12Shader CompileShader(ShaderStage stage, StringView filePath)
 		Platform::FatalError(errorMessage);
 	}
 #endif
+	return compileResult;
+}
 
-	IDxcBlob* shaderBlob = nullptr;
-	CHECK_RESULT(compileResult->GetResult(&shaderBlob));
+}
+
+D3D12Shader::D3D12Shader(const Shader& shader)
+{
+	IDxcResult* compileResult = Dxc::CompileShader(shader.GetStage(), shader.GetFilePath());
+
+	CHECK_RESULT(compileResult->GetResult(&Blob));
 
 	IDxcBlob* reflectionBlob = {};
 	CHECK_RESULT(compileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr));
@@ -119,13 +126,8 @@ D3D12Shader CompileShader(ShaderStage stage, StringView filePath)
 		.Size = reflectionBlob->GetBufferSize(),
 		.Encoding = 0,
 	};
-	ID3D12ShaderReflection* shaderReflection = {};
-	CHECK_RESULT(Utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&shaderReflection)));
+	CHECK_RESULT(Dxc::Utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&Reflection)));
 
 	SAFE_RELEASE(reflectionBlob);
 	SAFE_RELEASE(compileResult);
-
-	return D3D12Shader { shaderBlob, shaderReflection };
-}
-
 }

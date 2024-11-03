@@ -35,10 +35,9 @@ static D3D12_TEXTURE_ADDRESS_MODE ToD3D12(SamplerAddress address)
 	return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
 }
 
-D3D12Sampler CreateD3D12Sampler(ID3D12Device11* device, const Sampler& sampler, ViewHeap& samplerViewHeap)
+D3D12Sampler::D3D12Sampler(ID3D12Device11* device, const Sampler& sampler, ViewHeap* samplerViewHeap)
+	: HeapIndex(samplerViewHeap->AllocateIndex())
 {
-	const usize heapIndex = samplerViewHeap.AllocateIndex();
-
 	const D3D12_SAMPLER_DESC2 samplerDescription =
 	{
 		.Filter = ToD3D12(sampler.GetFilter()),
@@ -59,10 +58,5 @@ D3D12Sampler CreateD3D12Sampler(ID3D12Device11* device, const Sampler& sampler, 
 		.MaxLOD = D3D12_FLOAT32_MAX,
 		.Flags = D3D12_SAMPLER_FLAG_NONE,
 	};
-	device->CreateSampler2(&samplerDescription, D3D12_CPU_DESCRIPTOR_HANDLE { samplerViewHeap.GetCpu(heapIndex) });
-
-	return D3D12Sampler
-	{
-		.HeapIndex = heapIndex,
-	};
+	device->CreateSampler2(&samplerDescription, D3D12_CPU_DESCRIPTOR_HANDLE { samplerViewHeap->GetCpu(HeapIndex) });
 }

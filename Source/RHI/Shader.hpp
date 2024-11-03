@@ -51,8 +51,11 @@ inline bool operator==(const Shader& a, const Shader& b)
 	return a.Get() == b.Get();
 }
 
-struct D3D12Shader
+class D3D12Shader
 {
+public:
+	explicit D3D12Shader(const Shader& shader);
+
 	IDxcBlob* Blob;
 	ID3D12ShaderReflection* Reflection;
 };
@@ -61,6 +64,4 @@ namespace Dxc
 {
 void Init();
 void Shutdown();
-
-D3D12Shader CompileShader(ShaderStage stage, StringView filePath);
 }

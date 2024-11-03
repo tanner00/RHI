@@ -157,11 +157,11 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 		PendingDeletes.Add(Array<IUnknown*> {});
 	}
 
-	ConstantBufferShaderResourceUnorderedAccessViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
-															   ViewHeapType::ConstantBufferShaderResourceUnorderedAccess, true, this);
-	RenderTargetViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::RenderTarget, false, this);
-	DepthStencilViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::DepthStencil, false, this);
-	SamplerViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, ViewHeapType::Sampler, true, this);
+	ConstantBufferShaderResourceUnorderedAccessViewHeap.Create(Device, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
+															   ViewHeapType::ConstantBufferShaderResourceUnorderedAccess, true);
+	RenderTargetViewHeap.Create(Device, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::RenderTarget, false);
+	DepthStencilViewHeap.Create(Device, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::DepthStencil, false);
+	SamplerViewHeap.Create(Device, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, ViewHeapType::Sampler, true);
 }
 
 GpuDevice::~GpuDevice()
@@ -196,58 +196,42 @@ GpuDevice::~GpuDevice()
 Buffer GpuDevice::CreateBuffer(StringView name, const BufferDescription& description)
 {
 	const Buffer buffer = { HandleIndex++, description };
-	CHECK(buffer.GetSize() != 0);
-
-	Buffers.Add(buffer, CreateD3D12Buffer(Device, buffer, name));
+	Buffers.Add(buffer, D3D12Buffer(Device, buffer, name));
 	return buffer;
 }
 
 Buffer GpuDevice::CreateBuffer(StringView name, const void* staticData, const BufferDescription& description)
 {
-	const Buffer buffer = CreateBuffer(name, description);
-	CHECK(buffer.IsStatic());
-
-	const BufferResource uploadResource = AllocateBuffer(Device, buffer.GetSize(), true, "Upload [Buffer]"_view);
-	PendingBufferUploads.Add({ uploadResource, buffer });
-
-	void* mapped = nullptr;
-	CHECK_RESULT(uploadResource->Map(0, nullptr, &mapped));
-	Platform::MemoryCopy(mapped, staticData, buffer.GetSize());
-	static constexpr const D3D12_RANGE* writeEverything = nullptr;
-	uploadResource->Unmap(0, writeEverything);
-
+	const Buffer buffer = { HandleIndex++, description };
+	Buffers.Add(buffer, D3D12Buffer(Device, buffer, staticData, &PendingBufferUploads, name));
 	return buffer;
 }
 
 Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, const TextureDescription& description, TextureResource existingResource)
 {
 	const Texture texture = { HandleIndex++, description };
-
-	Textures.Add(texture, CreateD3D12Texture(Device, texture, initialLayout, name, existingResource));
+	Textures.Add(texture, D3D12Texture(Device, texture, initialLayout, existingResource, name));
 	return texture;
 }
 
 Sampler GpuDevice::CreateSampler(const SamplerDescription& description)
 {
 	const Sampler sampler = { HandleIndex++, description };
-
-	Samplers.Add(sampler, CreateD3D12Sampler(Device, sampler, SamplerViewHeap));
+	Samplers.Add(sampler, D3D12Sampler(Device, sampler, &SamplerViewHeap));
 	return sampler;
 }
 
 Shader GpuDevice::CreateShader(const ShaderDescription& description)
 {
 	const Shader shader = { HandleIndex++, description };
-
-	Shaders.Add(shader, Dxc::CompileShader(shader.GetStage(), shader.GetFilePath()));
+	Shaders.Add(shader, D3D12Shader(shader));
 	return shader;
 }
 
 GraphicsPipeline GpuDevice::CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description)
 {
 	const GraphicsPipeline graphicsPipeline = { HandleIndex++, description };
-
-	GraphicsPipelines.Add(graphicsPipeline, CreateD3D12GraphicsPipeline(Device, graphicsPipeline, Shaders, name));
+	GraphicsPipelines.Add(graphicsPipeline, D3D12GraphicsPipeline(Device, graphicsPipeline, Shaders, name));
 	return graphicsPipeline;
 }
 
@@ -262,6 +246,7 @@ void GpuDevice::DestroyBuffer(Buffer* buffer)
 	{
 		AddPendingDelete(resource);
 	}
+
 	Buffers.Remove(*buffer);
 	buffer->Reset();
 }
@@ -273,8 +258,8 @@ void GpuDevice::DestroyTexture(Texture* texture)
 		return;
 	}
 
-	const D3D12Texture& apiTexture = Textures[*texture];
-	AddPendingDelete(apiTexture.Resource);
+	AddPendingDelete(Textures[*texture].Resource);
+
 	Textures.Remove(*texture);
 	texture->Reset();
 }
@@ -300,6 +285,7 @@ void GpuDevice::DestroyShader(Shader* shader)
 	const D3D12Shader& apiShader = Shaders[*shader];
 	AddPendingDelete(apiShader.Blob);
 	AddPendingDelete(apiShader.Reflection);
+
 	Shaders.Remove(*shader);
 	shader->Reset();
 }
@@ -314,6 +300,7 @@ void GpuDevice::DestroyGraphicsPipeline(GraphicsPipeline* graphicsPipeline)
 	const D3D12GraphicsPipeline& apiGraphicsPipeline = GraphicsPipelines[*graphicsPipeline];
 	AddPendingDelete(apiGraphicsPipeline.PipelineState);
 	AddPendingDelete(apiGraphicsPipeline.RootSignature);
+
 	GraphicsPipelines.Remove(*graphicsPipeline);
 	graphicsPipeline->Reset();
 }
@@ -326,194 +313,23 @@ GraphicsContext GpuDevice::CreateGraphicsContext()
 void GpuDevice::Write(const Buffer& buffer, const void* data)
 {
 	const D3D12Buffer& apiBuffer = Buffers[buffer];
-
-	BufferResource resource = nullptr;
-	CHECK(!buffer.IsStatic());
-	if (buffer.IsStream())
-	{
-		resource = apiBuffer.GetBufferResource(GetFrameIndex(), true);
-	}
-	else if (buffer.IsDynamic())
-	{
-		resource = AllocateBuffer(Device, buffer.GetSize(), true, "Upload [Buffer]"_view);
-		PendingBufferUploads.Add({ resource, buffer });
-	}
-
-	void* mapped = nullptr;
-	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
-	Platform::MemoryCopy(mapped, data, buffer.GetSize());
-	static constexpr const D3D12_RANGE* writeEverything = nullptr;
-	resource->Unmap(0, writeEverything);
+	apiBuffer.Write(Device, buffer, data, GetFrameIndex(), &PendingBufferUploads);
 }
 
 void GpuDevice::Write(const Texture& texture, const void* data)
 {
-	CHECK(texture.GetType() == TextureType::Rectangle);
-
-	const D3D12_RESOURCE_DESC1 textureDescription =
-	{
-		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		.Width = texture.GetWidth(),
-		.Height = texture.GetHeight(),
-		.DepthOrArraySize = static_cast<uint16>(texture.GetCount()),
-		.MipLevels = 1,
-		.Format = ToD3D12(texture.GetFormat()),
-		.SampleDesc = DefaultSampleDescription,
-		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-		.Flags = D3D12_RESOURCE_FLAG_NONE,
-		.SamplerFeedbackMipRegion = {},
-	};
-	static constexpr uint32 singleResource = 1;
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-	uint32 rowCount;
-	uint64 rowSize;
-	uint64 totalSize;
-	Device->GetCopyableFootprints1(&textureDescription, 0, singleResource, 0, &layout, &rowCount, &rowSize, &totalSize);
-
-	const BufferResource resource = AllocateBuffer(Device, totalSize, true, "Upload [Texture]"_view);
-
-	void* mapped = nullptr;
-	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
-	for (usize row = 0; row < rowCount; ++row)
-	{
-		Platform::MemoryCopy
-		(
-			static_cast<uint8*>(mapped) + row * layout.Footprint.RowPitch,
-			static_cast<const uint8*>(data) + row * rowSize,
-			rowSize
-		);
-	}
-	static constexpr const D3D12_RANGE* writeEverything = nullptr;
-	resource->Unmap(0, writeEverything);
-
-	PendingTextureUploads.Add({ resource, texture });
+	WriteTexture(Device, texture, data, &PendingTextureUploads);
 }
 
 void GpuDevice::WriteCubemap(const Texture& texture, const Array<uint8*>& faces)
 {
-	CHECK(texture.GetType() == TextureType::Cubemap);
-	CHECK(faces.GetLength() == 6);
-
-	usize totalSize = 0;
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layouts[6];
-	usize subresourceSizes[6];
-	uint32 rowCounts[6];
-	usize rowSizes[6];
-
-	for (usize subresourceIndex = 0; subresourceIndex < texture.GetCount(); ++subresourceIndex)
-	{
-		const D3D12_RESOURCE_DESC1 textureDescription =
-		{
-			.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-			.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-			.Width = texture.GetWidth(),
-			.Height = texture.GetHeight(),
-			.DepthOrArraySize = static_cast<uint16>(texture.GetCount()),
-			.MipLevels = 1,
-			.Format = ToD3D12(texture.GetFormat()),
-			.SampleDesc = DefaultSampleDescription,
-			.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-			.Flags = D3D12_RESOURCE_FLAG_NONE,
-			.SamplerFeedbackMipRegion = {},
-		};
-		static constexpr uint32 singleResource = 1;
-		Device->GetCopyableFootprints1(&textureDescription, static_cast<uint32>(subresourceIndex), singleResource, 0,
-									   &layouts[subresourceIndex], &rowCounts[subresourceIndex], &rowSizes[subresourceIndex], &subresourceSizes[subresourceIndex]);
-
-		totalSize += subresourceSizes[subresourceIndex];
-	}
-
-	const BufferResource resource = AllocateBuffer(Device, totalSize, true, "Upload [Cubemap Texture]"_view);
-
-	void* mapped = nullptr;
-	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
-	for (usize subresourceIndex = 0; subresourceIndex < texture.GetCount(); ++subresourceIndex)
-	{
-		for (usize row = 0; row < rowCounts[subresourceIndex]; ++row)
-		{
-			Platform::MemoryCopy
-			(
-				static_cast<uint8*>(mapped) + subresourceIndex * subresourceSizes[subresourceIndex] + row * layouts[subresourceIndex].Footprint.RowPitch,
-				static_cast<const uint8*>(faces[subresourceIndex]) + row * rowSizes[subresourceIndex],
-				rowSizes[subresourceIndex]
-			);
-		}
-	}
-	static constexpr const D3D12_RANGE* writeEverything = nullptr;
-	resource->Unmap(0, writeEverything);
-
-	PendingTextureUploads.Add({ resource, texture });
+	WriteCubemapTexture(Device, texture, faces, &PendingTextureUploads);
 }
 
 void GpuDevice::Submit(const GraphicsContext& context)
 {
 	ReleaseFrameDeletes();
-
-	if (!PendingBufferUploads.IsEmpty() || !PendingTextureUploads.IsEmpty())
-	{
-		CHECK_RESULT(UploadCommandList->Reset(UploadCommandAllocators[FrameIndex], nullptr));
-
-		for (const auto& [source, destination] : PendingTextureUploads)
-		{
-			const D3D12Texture& destinationTexture = Textures[destination];
-
-			for (usize subresourceIndex = 0; subresourceIndex < destination.GetCount(); ++subresourceIndex)
-			{
-				const D3D12_RESOURCE_DESC1 textureDescription =
-				{
-					.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-					.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-					.Width = destination.GetWidth(),
-					.Height = destination.GetHeight(),
-					.DepthOrArraySize = static_cast<uint16>(destination.GetCount()),
-					.MipLevels = 1,
-					.Format = ToD3D12(destination.GetFormat()),
-					.SampleDesc = DefaultSampleDescription,
-					.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-					.Flags = D3D12_RESOURCE_FLAG_NONE,
-					.SamplerFeedbackMipRegion = {},
-				};
-				static constexpr uint32 singleResource = 1;
-				D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-				uint32 rowCount;
-				Device->GetCopyableFootprints1(&textureDescription, static_cast<uint32>(subresourceIndex), singleResource, 0,
-											   &layout, &rowCount, nullptr, nullptr);
-
-				const D3D12_TEXTURE_COPY_LOCATION sourceLocation =
-				{
-					.pResource = source,
-					.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
-					.PlacedFootprint = layout,
-				};
-				const D3D12_TEXTURE_COPY_LOCATION destinationLocation =
-				{
-					.pResource = destinationTexture.Resource,
-					.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-					.SubresourceIndex = static_cast<uint32>(subresourceIndex),
-				};
-				UploadCommandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
-			}
-
-			PendingDeletes[FrameIndex].Add(source);
-		}
-
-		for (const auto& [source, destination] : PendingBufferUploads)
-		{
-			const D3D12Buffer& destinationBuffer = Buffers[destination];
-			UploadCommandList->CopyResource(destinationBuffer.GetOnlyBufferResource(), source);
-
-			PendingDeletes[FrameIndex].Add(source);
-		}
-
-		CHECK_RESULT(UploadCommandList->Close());
-
-		ID3D12CommandList* upload[] = { UploadCommandList };
-		GraphicsQueue->ExecuteCommandLists(ARRAY_COUNT(upload), upload);
-
-		PendingBufferUploads.Clear();
-		PendingTextureUploads.Clear();
-	}
+	FlushUploads();
 
 	ID3D12CommandList* graphics[] = { context.GetCommandList() };
 	GraphicsQueue->ExecuteCommandLists(ARRAY_COUNT(graphics), graphics);
@@ -587,6 +403,75 @@ TextureResource GpuDevice::GetSwapChainResource(usize backBufferIndex) const
 usize GpuDevice::GetFrameIndex() const
 {
 	return FrameIndex;
+}
+
+void GpuDevice::FlushUploads()
+{
+	if (PendingBufferUploads.IsEmpty() && PendingTextureUploads.IsEmpty())
+	{
+		return;
+	}
+	CHECK_RESULT(UploadCommandList->Reset(UploadCommandAllocators[FrameIndex], nullptr));
+
+	for (const auto& [source, destination] : PendingTextureUploads)
+	{
+		const D3D12Texture& destinationTexture = Textures[destination];
+
+		for (usize subresourceIndex = 0; subresourceIndex < destination.GetCount(); ++subresourceIndex)
+		{
+			const D3D12_RESOURCE_DESC1 textureDescription =
+			{
+				.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+				.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+				.Width = destination.GetWidth(),
+				.Height = destination.GetHeight(),
+				.DepthOrArraySize = static_cast<uint16>(destination.GetCount()),
+				.MipLevels = 1,
+				.Format = ToD3D12(destination.GetFormat()),
+				.SampleDesc = DefaultSampleDescription,
+				.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+				.Flags = D3D12_RESOURCE_FLAG_NONE,
+				.SamplerFeedbackMipRegion = {},
+			};
+			static constexpr uint32 singleResource = 1;
+			D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+			uint32 rowCount;
+			Device->GetCopyableFootprints1(&textureDescription, static_cast<uint32>(subresourceIndex), singleResource, 0,
+										   &layout, &rowCount, nullptr, nullptr);
+
+			const D3D12_TEXTURE_COPY_LOCATION sourceLocation =
+			{
+				.pResource = source,
+				.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+				.PlacedFootprint = layout,
+			};
+			const D3D12_TEXTURE_COPY_LOCATION destinationLocation =
+			{
+				.pResource = destinationTexture.Resource,
+				.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+				.SubresourceIndex = static_cast<uint32>(subresourceIndex),
+			};
+			UploadCommandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
+		}
+
+		PendingDeletes[FrameIndex].Add(source);
+	}
+
+	for (const auto& [source, destination] : PendingBufferUploads)
+	{
+		const D3D12Buffer& destinationBuffer = Buffers[destination];
+		UploadCommandList->CopyResource(destinationBuffer.GetOnlyBufferResource(), source);
+
+		PendingDeletes[FrameIndex].Add(source);
+	}
+
+	CHECK_RESULT(UploadCommandList->Close());
+
+	ID3D12CommandList* upload[] = { UploadCommandList };
+	GraphicsQueue->ExecuteCommandLists(ARRAY_COUNT(upload), upload);
+
+	PendingBufferUploads.Clear();
+	PendingTextureUploads.Clear();
 }
 
 void GpuDevice::ReleaseFrameDeletes()

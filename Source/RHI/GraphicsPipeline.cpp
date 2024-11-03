@@ -16,15 +16,12 @@ static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array
 static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection, HashTable<String, RootParameter>& rootParameters);
 }
 
-D3D12GraphicsPipeline CreateD3D12GraphicsPipeline(ID3D12Device11* device, const GraphicsPipeline& graphicsPipeline,
-												  const HashTable<Shader, D3D12Shader>& apiShaders, StringView name)
+static constexpr usize BindingBucketCount = 4;
+
+D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device, const GraphicsPipeline& graphicsPipeline,
+											 const HashTable<Shader, D3D12Shader>& apiShaders, StringView name)
+	: Parameters(BindingBucketCount)
 {
-	static constexpr usize bindingBucketCount = 4;
-
-	HashTable<String, usize> parameters(bindingBucketCount);
-	ID3D12RootSignature* rootSignature = nullptr;
-	ID3D12PipelineState* pipelineState = nullptr;
-
 	CHECK(graphicsPipeline.HasShaderStage(ShaderStage::Vertex));
 	const bool usesPixelShader = graphicsPipeline.HasShaderStage(ShaderStage::Pixel);
 	if (usesPixelShader)
@@ -42,7 +39,7 @@ D3D12GraphicsPipeline CreateD3D12GraphicsPipeline(ID3D12Device11* device, const 
 	Array<D3D12_INPUT_ELEMENT_DESC> inputElements;
 	Dxc::ReflectInputElements(vertex->Reflection, inputElements);
 
-	HashTable<String, RootParameter> rootParameters(bindingBucketCount);
+	HashTable<String, RootParameter> rootParameters(BindingBucketCount);
 	Dxc::ReflectRootParameters(vertex->Reflection, rootParameters);
 	if (usesPixelShader)
 	{
@@ -55,7 +52,7 @@ D3D12GraphicsPipeline CreateD3D12GraphicsPipeline(ID3D12Device11* device, const 
 	{
 		rootParametersList.Add(rootParameter.Parameter);
 
-		parameters.Add(Move(resourceName), rootParameterIndex);
+		Parameters.Add(Move(resourceName), rootParameterIndex);
 		++rootParameterIndex;
 	}
 
@@ -86,9 +83,9 @@ D3D12GraphicsPipeline CreateD3D12GraphicsPipeline(ID3D12Device11* device, const 
 #endif
 	CHECK(serializedRootSignature);
 	CHECK_RESULT(device->CreateRootSignature(0, serializedRootSignature->GetBufferPointer(), serializedRootSignature->GetBufferSize(),
-											 IID_PPV_ARGS(&rootSignature)));
+											 IID_PPV_ARGS(&RootSignature)));
 #if DEBUG
-	CHECK_RESULT(rootSignature->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
+	CHECK_RESULT(RootSignature->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
 #else
 	(void)name;
 #endif
@@ -108,7 +105,7 @@ D3D12GraphicsPipeline CreateD3D12GraphicsPipeline(ID3D12Device11* device, const 
 	};
 	const D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDescription =
 	{
-		.pRootSignature = rootSignature,
+		.pRootSignature = RootSignature,
 		.VS =
 		{
 			.pShaderBytecode = vertex->Blob->GetBufferPointer(),
@@ -185,18 +182,12 @@ D3D12GraphicsPipeline CreateD3D12GraphicsPipeline(ID3D12Device11* device, const 
 		.CachedPSO = {},
 		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE,
 	};
-	CHECK_RESULT(device->CreateGraphicsPipelineState(&graphicsPipelineStateDescription, IID_PPV_ARGS(&pipelineState)));
+	CHECK_RESULT(device->CreateGraphicsPipelineState(&graphicsPipelineStateDescription, IID_PPV_ARGS(&PipelineState)));
 #if DEBUG
-	CHECK_RESULT(pipelineState->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
+	CHECK_RESULT(PipelineState->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
 #else
 	(void)name;
 #endif
-	return D3D12GraphicsPipeline
-	{
-		.Parameters = Move(parameters),
-		.RootSignature = Move(rootSignature),
-		.PipelineState = Move(pipelineState),
-	};
 }
 
 namespace Dxc

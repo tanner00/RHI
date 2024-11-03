@@ -52,9 +52,10 @@ inline bool operator==(const Sampler& a, const Sampler& b)
 	return a.Get() == b.Get();
 }
 
-struct D3D12Sampler
+class D3D12Sampler
 {
+public:
+	D3D12Sampler(ID3D12Device11* device, const Sampler& sampler, ViewHeap* samplerViewHeap);
+
 	usize HeapIndex;
 };
-
-D3D12Sampler CreateD3D12Sampler(ID3D12Device11* device, const Sampler& sampler, ViewHeap& samplerViewHeap);

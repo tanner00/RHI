@@ -40,22 +40,59 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 	return resource;
 }
 
-D3D12Buffer CreateD3D12Buffer(ID3D12Device11* device, const Buffer& buffer, StringView name)
+D3D12Buffer::D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, StringView name)
 {
-	D3D12Buffer apiBuffer = {};
+	CHECK(buffer.GetSize() != 0);
 
 	const usize resourceCount = buffer.IsStream() ? FramesInFlight : 1;
-	for (usize i = 0; i < resourceCount; ++i)
+	for (usize i = 0; i < FramesInFlight; ++i)
 	{
-		if (buffer.IsStream())
+		const bool validResource = i < resourceCount;
+		if (validResource)
 		{
-			apiBuffer.Resources[i] = AllocateBuffer(device, buffer.GetSize(), true, name);
+			Resources[i] = AllocateBuffer(device, buffer.GetSize(), buffer.IsStream(), name);
 		}
 		else
 		{
-			apiBuffer.Resources[i] = AllocateBuffer(device, buffer.GetSize(), false, name);
+			Resources[i] = nullptr;
 		}
 	}
+}
 
-	return apiBuffer;
+D3D12Buffer::D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, const void* staticData, Array<UploadPair<Buffer>>* pendingBufferUploads,
+						 StringView name)
+	: D3D12Buffer(device, buffer, name)
+{
+	CHECK(buffer.IsStatic());
+
+	const BufferResource uploadResource = AllocateBuffer(device, buffer.GetSize(), true, "Upload [Buffer]"_view);
+	pendingBufferUploads->Add({ uploadResource, buffer });
+
+	void* mapped = nullptr;
+	CHECK_RESULT(uploadResource->Map(0, nullptr, &mapped));
+	Platform::MemoryCopy(mapped, staticData, buffer.GetSize());
+	static constexpr const D3D12_RANGE* writeEverything = nullptr;
+	uploadResource->Unmap(0, writeEverything);
+}
+
+void D3D12Buffer::Write(ID3D12Device11* device, const Buffer& buffer, const void* data, usize frameIndex,
+						Array<UploadPair<Buffer>>* pendingBufferUploads) const
+{
+	BufferResource resource = nullptr;
+	CHECK(!buffer.IsStatic());
+	if (buffer.IsStream())
+	{
+		resource = GetBufferResource(frameIndex, true);
+	}
+	else if (buffer.IsDynamic())
+	{
+		resource = AllocateBuffer(device, buffer.GetSize(), true, "Upload [Buffer]"_view);
+		pendingBufferUploads->Add({ resource, buffer });
+	}
+
+	void* mapped = nullptr;
+	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
+	Platform::MemoryCopy(mapped, data, buffer.GetSize());
+	static constexpr const D3D12_RANGE* writeEverything = nullptr;
+	resource->Unmap(0, writeEverything);
 }

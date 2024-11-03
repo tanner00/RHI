@@ -22,7 +22,7 @@ static D3D12_DESCRIPTOR_HEAP_TYPE ToD3D12(ViewHeapType type)
 	return D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 }
 
-void ViewHeap::Create(usize viewCount, ViewHeapType type, bool shaderVisible, const GpuDevice* device)
+void ViewHeap::Create(ID3D12Device11* device, usize viewCount, ViewHeapType type, bool shaderVisible)
 {
 	static constexpr usize oneEmptyView = 1;
 
@@ -36,8 +36,8 @@ void ViewHeap::Create(usize viewCount, ViewHeapType type, bool shaderVisible, co
 		.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
 		.NodeMask = 0,
 	};
-	CHECK_RESULT(device->GetDevice()->CreateDescriptorHeap(&descriptorHeapDescriptor, IID_PPV_ARGS(&Heap)));
-	ViewSize = device->GetDevice()->GetDescriptorHandleIncrementSize(descriptorHeapDescriptor.Type);
+	CHECK_RESULT(device->CreateDescriptorHeap(&descriptorHeapDescriptor, IID_PPV_ARGS(&Heap)));
+	ViewSize = device->GetDescriptorHandleIncrementSize(descriptorHeapDescriptor.Type);
 	CpuBase = Heap->GetCPUDescriptorHandleForHeapStart().ptr;
 }
 

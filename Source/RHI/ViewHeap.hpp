@@ -18,7 +18,7 @@ class ViewHeap : public NoCopy
 public:
 	ViewHeap() = default;
 
-	void Create(usize viewCount, ViewHeapType type, bool shaderVisible, const GpuDevice* device);
+	void Create(ID3D12Device11* device, usize viewCount, ViewHeapType type, bool shaderVisible);
 	void Destroy();
 
 	usize AllocateIndex();

@@ -90,6 +90,13 @@ DECLARE_RHI_HANDLE(GraphicsPipeline);
 	{}																		\
 	name() : RhiHandle { 0 } {}
 
+template<typename T>
+struct UploadPair
+{
+	ID3D12Resource2* Source;
+	T Destination;
+};
+
 enum class ViewType
 {
 	ConstantBuffer,

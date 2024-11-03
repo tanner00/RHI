@@ -62,12 +62,13 @@ inline bool operator==(const GraphicsPipeline& a, const GraphicsPipeline& b)
 	return a.Get() == b.Get();
 }
 
-struct D3D12GraphicsPipeline
+class D3D12GraphicsPipeline
 {
+public:
+	D3D12GraphicsPipeline(ID3D12Device11* device, const GraphicsPipeline& graphicsPipeline,
+						  const HashTable<Shader, D3D12Shader>& apiShaders, StringView name);
+
 	HashTable<String, usize> Parameters;
 	ID3D12RootSignature* RootSignature;
 	ID3D12PipelineState* PipelineState;
 };
-
-D3D12GraphicsPipeline CreateD3D12GraphicsPipeline(ID3D12Device11* device, const GraphicsPipeline& graphicsPipeline,
-												  const HashTable<Shader, D3D12Shader>& apiShaders, StringView name);

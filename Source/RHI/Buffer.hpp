@@ -58,9 +58,15 @@ inline bool operator==(const Buffer& a, const Buffer& b)
 	return a.Get() == b.Get();
 }
 
+BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, StringView name);
+
 class D3D12Buffer
 {
 public:
+	D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, StringView name);
+	D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, const void* staticData, Array<UploadPair<Buffer>>* pendingBufferUploads,
+				StringView name);
+
 	BufferResource GetOnlyBufferResource() const
 	{
 		CHECK(Resources[0] && !Resources[1]);
@@ -75,9 +81,8 @@ public:
 		return current;
 	}
 
+	void Write(ID3D12Device11* device, const Buffer& buffer, const void* data, usize frameIndex,
+			   Array<UploadPair<Buffer>>* pendingBufferUploads) const;
+
 	BufferResource Resources[FramesInFlight];
 };
-
-BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, StringView name);
-
-D3D12Buffer CreateD3D12Buffer(ID3D12Device11* device, const Buffer& buffer, StringView name);
