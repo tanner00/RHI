@@ -27,6 +27,7 @@ class GraphicsPipeline;
 class Sampler;
 class Shader;
 class Texture;
+class ViewHeap;
 
 struct ID3D12CommandAllocator;
 struct ID3D12CommandQueue;

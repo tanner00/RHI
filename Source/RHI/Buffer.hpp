@@ -77,3 +77,7 @@ public:
 
 	BufferResource Resources[FramesInFlight];
 };
+
+BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, StringView name);
+
+D3D12Buffer CreateD3D12Buffer(ID3D12Device11* device, const Buffer& buffer, StringView name);

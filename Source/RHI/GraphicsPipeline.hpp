@@ -41,6 +41,8 @@ public:
 	TextureFormat GetRenderTargetFormat() const { return Description.RenderTargetFormat; }
 	TextureFormat GetDepthFormat() const { return Description.DepthFormat; }
 
+	bool IsAlphaBlended() const { return Description.AlphaBlend; }
+
 private:
 	GraphicsPipelineDescription Description;
 };
@@ -66,3 +68,6 @@ struct D3D12GraphicsPipeline
 	ID3D12RootSignature* RootSignature;
 	ID3D12PipelineState* PipelineState;
 };
+
+D3D12GraphicsPipeline CreateD3D12GraphicsPipeline(ID3D12Device11* device, const GraphicsPipeline& graphicsPipeline,
+												  const HashTable<Shader, D3D12Shader>& apiShaders, StringView name);

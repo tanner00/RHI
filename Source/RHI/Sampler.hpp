@@ -31,6 +31,7 @@ public:
 
 	SamplerAddress GetAddress() const { return Description.Address; }
 	SamplerFilter GetFilter() const { return Description.Filter; }
+	Float4 GetBorderFilterColor() const { return Description.BorderFilterColor; }
 
 private:
 	SamplerDescription Description;
@@ -55,3 +56,5 @@ struct D3D12Sampler
 {
 	usize HeapIndex;
 };
+
+D3D12Sampler CreateD3D12Sampler(ID3D12Device11* device, const Sampler& sampler, ViewHeap& samplerViewHeap);

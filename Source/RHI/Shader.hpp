@@ -56,3 +56,11 @@ struct D3D12Shader
 	IDxcBlob* Blob;
 	ID3D12ShaderReflection* Reflection;
 };
+
+namespace Dxc
+{
+void Init();
+void Shutdown();
+
+D3D12Shader CompileShader(ShaderStage stage, StringView filePath);
+}

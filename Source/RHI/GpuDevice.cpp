@@ -13,167 +13,10 @@
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
 
-struct RootParameter
-{
-	D3D12_ROOT_PARAMETER1 Parameter;
-	Array<D3D12_DESCRIPTOR_RANGE1> Ranges;
-};
-
-namespace Dxc
-{
-static void Init();
-static void Shutdown();
-
-static D3D12Shader CompileShader(ShaderStage stage, StringView filePath);
-
-static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array<D3D12_INPUT_ELEMENT_DESC>& inputElements);
-static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
-								  HashTable<String, RootParameter>& rootParameters);
-}
-
-static D3D12_FILTER ToD3D12(SamplerFilter filter)
-{
-	switch (filter)
-	{
-	case SamplerFilter::Point:
-		return D3D12_FILTER_MIN_MAG_MIP_POINT;
-	case SamplerFilter::Linear:
-		return D3D12_FILTER_MIN_MAG_MIP_LINEAR;
-	case SamplerFilter::Anisotropic:
-		return D3D12_FILTER_ANISOTROPIC;
-	}
-	CHECK(false);
-	return D3D12_FILTER_MIN_MAG_MIP_POINT;
-}
-
-static D3D12_TEXTURE_ADDRESS_MODE ToD3D12(SamplerAddress address)
-{
-	switch (address)
-	{
-	case SamplerAddress::Wrap:
-		return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-	case SamplerAddress::Mirror:
-		return D3D12_TEXTURE_ADDRESS_MODE_MIRROR;
-	case SamplerAddress::Clamp:
-		return D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
-	case SamplerAddress::Border:
-		return D3D12_TEXTURE_ADDRESS_MODE_BORDER;
-	}
-	CHECK(false);
-	return D3D12_TEXTURE_ADDRESS_MODE_WRAP;
-}
-
-static DXGI_FORMAT ToD3D12View(TextureFormat format, ViewType type)
-{
-	switch (format)
-	{
-	case TextureFormat::Depth24Stencil8:
-		if (type == ViewType::ShaderResource)
-		{
-			return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
-		}
-		break;
-	case TextureFormat::Depth32:
-		if (type == ViewType::ShaderResource)
-		{
-			return DXGI_FORMAT_R32_TYPELESS;
-		}
-		break;
-	}
-	return ToD3D12(format);
-}
-
 extern "C"
 {
 __declspec(dllexport) extern const uint32 D3D12SDKVersion = D3D12_PREVIEW_SDK_VERSION;
 __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
-}
-
-static BufferResource AllocateBuffer(ID3D12Device11* device, usize size, StringView name, bool upload)
-{
-	const D3D12_HEAP_PROPERTIES heapProperties =
-	{
-		.Type = upload ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT,
-		.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-		.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
-		.CreationNodeMask = 0,
-		.VisibleNodeMask = 0,
-	};
-	const D3D12_RESOURCE_DESC1 bufferDescription =
-	{
-		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
-		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		.Width = size,
-		.Height = 1,
-		.DepthOrArraySize = 1,
-		.MipLevels = 1,
-		.Format = DXGI_FORMAT_UNKNOWN,
-		.SampleDesc = DefaultSampleDescription,
-		.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-		.Flags = D3D12_RESOURCE_FLAG_NONE,
-		.SamplerFeedbackMipRegion = {},
-	};
-
-	static constexpr const DXGI_FORMAT* noCastableFormats = nullptr;
-	BufferResource resource = nullptr;
-	CHECK_RESULT(device->CreateCommittedResource3(&heapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &bufferDescription,
-												  ToD3D12(BarrierLayout::Undefined), nullptr, nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
-#if DEBUG
-	CHECK_RESULT(resource->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
-#else
-	(void)name;
-#endif
-	return resource;
-}
-
-static TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name)
-{
-	const D3D12_RESOURCE_FLAGS renderTargetFlag = texture.IsRenderTarget() ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
-	const D3D12_RESOURCE_FLAGS depthStencilFlag = IsDepthFormat(texture.GetFormat()) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
-	CHECK((renderTargetFlag & depthStencilFlag) == 0);
-
-	constexpr D3D12_HEAP_PROPERTIES heapProperties =
-	{
-		.Type = D3D12_HEAP_TYPE_DEFAULT,
-		.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-		.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
-		.CreationNodeMask = 0,
-		.VisibleNodeMask = 0,
-	};
-	const D3D12_RESOURCE_DESC1 textureDescription =
-	{
-		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		.Width = texture.GetWidth(),
-		.Height = texture.GetHeight(),
-		.DepthOrArraySize = static_cast<uint16>(texture.GetCount()),
-		.MipLevels = 1,
-		.Format = ToD3D12(texture.GetFormat()),
-		.SampleDesc = DefaultSampleDescription,
-		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-		.Flags = renderTargetFlag | depthStencilFlag,
-		.SamplerFeedbackMipRegion = {},
-	};
-	const D3D12_CLEAR_VALUE depthClear =
-	{
-		.Format = ToD3D12(texture.GetFormat()),
-		.DepthStencil =
-		{
-			.Depth = D3D12_MAX_DEPTH,
-			.Stencil = 0,
-		},
-	};
-
-	static constexpr const DXGI_FORMAT* noCastableFormats = nullptr;
-	TextureResource resource = nullptr;
-	CHECK_RESULT(device->CreateCommittedResource3(&heapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &textureDescription, ToD3D12(initialLayout),
-												  IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr, nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
-#if DEBUG
-	CHECK_RESULT(resource->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
-#else
-	(void)name;
-#endif
-	return resource;
 }
 
 static constexpr DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -355,22 +198,7 @@ Buffer GpuDevice::CreateBuffer(StringView name, const BufferDescription& descrip
 	const Buffer buffer = { HandleIndex++, description };
 	CHECK(buffer.GetSize() != 0);
 
-	D3D12Buffer apiBuffer = {};
-
-	const usize resourceCount = buffer.IsStream() ? FramesInFlight : 1;
-	for (usize i = 0; i < resourceCount; ++i)
-	{
-		if (buffer.IsStream())
-		{
-			apiBuffer.Resources[i] = AllocateBuffer(Device, buffer.GetSize(), name, true);
-		}
-		else
-		{
-			apiBuffer.Resources[i] = AllocateBuffer(Device, buffer.GetSize(), name, false);
-		}
-	}
-
-	Buffers.Add(buffer, Move(apiBuffer));
+	Buffers.Add(buffer, CreateD3D12Buffer(Device, buffer, name));
 	return buffer;
 }
 
@@ -379,7 +207,7 @@ Buffer GpuDevice::CreateBuffer(StringView name, const void* staticData, const Bu
 	const Buffer buffer = CreateBuffer(name, description);
 	CHECK(buffer.IsStatic());
 
-	const BufferResource uploadResource = AllocateBuffer(Device, buffer.GetSize(), "Upload [Buffer]"_view, true);
+	const BufferResource uploadResource = AllocateBuffer(Device, buffer.GetSize(), true, "Upload [Buffer]"_view);
 	PendingBufferUploads.Add({ uploadResource, buffer });
 
 	void* mapped = nullptr;
@@ -395,11 +223,7 @@ Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, c
 {
 	const Texture texture = { HandleIndex++, description };
 
-	Textures.Add(texture, D3D12Texture
-	{
-		.Resource = existingResource ? existingResource : AllocateTexture(Device, texture, initialLayout, name),
-		.HeapIndices = {},
-	});
+	Textures.Add(texture, CreateD3D12Texture(Device, texture, initialLayout, name, existingResource));
 	return texture;
 }
 
@@ -407,34 +231,7 @@ Sampler GpuDevice::CreateSampler(const SamplerDescription& description)
 {
 	const Sampler sampler = { HandleIndex++, description };
 
-	const usize heapIndex = SamplerViewHeap.AllocateIndex();
-
-	const D3D12_SAMPLER_DESC2 samplerDescription =
-	{
-		.Filter = ToD3D12(description.Filter),
-		.AddressU = ToD3D12(description.Address),
-		.AddressV = ToD3D12(description.Address),
-		.AddressW = ToD3D12(description.Address),
-		.MipLODBias = 0,
-		.MaxAnisotropy = D3D12_DEFAULT_MAX_ANISOTROPY,
-		.ComparisonFunc = D3D12_COMPARISON_FUNC_NONE,
-		.FloatBorderColor =
-		{
-			description.BorderFilterColor.X,
-			description.BorderFilterColor.Y,
-			description.BorderFilterColor.Z,
-			description.BorderFilterColor.W,
-		},
-		.MinLOD = 0.0f,
-		.MaxLOD = D3D12_FLOAT32_MAX,
-		.Flags = D3D12_SAMPLER_FLAG_NONE,
-	};
-	Device->CreateSampler2(&samplerDescription, D3D12_CPU_DESCRIPTOR_HANDLE { SamplerViewHeap.GetCpu(heapIndex) });
-
-	Samplers.Add(sampler, D3D12Sampler
-	{
-		.HeapIndex = heapIndex,
-	});
+	Samplers.Add(sampler, CreateD3D12Sampler(Device, sampler, SamplerViewHeap));
 	return sampler;
 }
 
@@ -448,186 +245,9 @@ Shader GpuDevice::CreateShader(const ShaderDescription& description)
 
 GraphicsPipeline GpuDevice::CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description)
 {
-	static constexpr usize bindingBucketCount = 4;
-
 	const GraphicsPipeline graphicsPipeline = { HandleIndex++, description };
 
-	HashTable<String, usize> parameters(bindingBucketCount);
-	ID3D12RootSignature* rootSignature = nullptr;
-	ID3D12PipelineState* pipelineState = nullptr;
-
-	CHECK(graphicsPipeline.HasShaderStage(ShaderStage::Vertex));
-	const bool usesPixelShader = graphicsPipeline.HasShaderStage(ShaderStage::Pixel);
-	if (usesPixelShader)
-	{
-		CHECK(graphicsPipeline.GetStageCount() == 2);
-	}
-	else
-	{
-		CHECK(graphicsPipeline.GetStageCount() == 1);
-	}
-
-	const D3D12Shader* vertex = &Shaders[graphicsPipeline.GetShaderStage(ShaderStage::Vertex)];
-	const D3D12Shader* pixel = usesPixelShader ? &Shaders[graphicsPipeline.GetShaderStage(ShaderStage::Pixel)] : nullptr;
-
-	Array<D3D12_INPUT_ELEMENT_DESC> inputElements;
-	Dxc::ReflectInputElements(vertex->Reflection, inputElements);
-
-	HashTable<String, RootParameter> rootParameters(bindingBucketCount);
-	Dxc::ReflectRootParameters(vertex->Reflection, rootParameters);
-	if (usesPixelShader)
-	{
-		Dxc::ReflectRootParameters(pixel->Reflection, rootParameters);
-	}
-
-	Array<D3D12_ROOT_PARAMETER1> rootParametersList(rootParameters.GetCount());
-	usize rootParameterIndex = 0;
-	for (auto& [resourceName, rootParameter] : rootParameters)
-	{
-		rootParametersList.Add(rootParameter.Parameter);
-
-		parameters.Add(Move(resourceName), rootParameterIndex);
-		++rootParameterIndex;
-	}
-
-	const D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription =
-	{
-		.Version = D3D_ROOT_SIGNATURE_VERSION_1_1,
-		.Desc_1_1 =
-		{
-			.NumParameters = static_cast<uint32>(rootParametersList.GetLength()),
-			.pParameters = rootParametersList.GetData(),
-			.NumStaticSamplers = 0,
-			.pStaticSamplers = nullptr,
-			.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
-		},
-	};
-	ID3DBlob* serializedRootSignature = nullptr;
-	ID3DBlob* errorBlob = nullptr;
-	const HRESULT rootSignatureResult = D3D12SerializeVersionedRootSignature(&rootSignatureDescription, &serializedRootSignature, &errorBlob);
-#if DEBUG
-	if (FAILED(rootSignatureResult) && errorBlob)
-	{
-		char errorMessage[512] = {};
-		Platform::StringPrint("Root Signature Error: %s\n", errorMessage, sizeof(errorMessage), errorBlob->GetBufferPointer());
-		Platform::FatalError(errorMessage);
-	}
-#else
-	(void)rootSignatureResult;
-#endif
-	CHECK(serializedRootSignature);
-	CHECK_RESULT(Device->CreateRootSignature(0, serializedRootSignature->GetBufferPointer(), serializedRootSignature->GetBufferSize(),
-											 IID_PPV_ARGS(&rootSignature)));
-#if DEBUG
-	CHECK_RESULT(rootSignature->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
-#else
-	(void)name;
-#endif
-
-	const D3D12_RENDER_TARGET_BLEND_DESC defaultBlendDescription =
-	{
-		.BlendEnable = description.AlphaBlend,
-		.LogicOpEnable = false,
-		.SrcBlend = description.AlphaBlend ? D3D12_BLEND_SRC_ALPHA : D3D12_BLEND_ONE,
-		.DestBlend = description.AlphaBlend ? D3D12_BLEND_INV_SRC_ALPHA : D3D12_BLEND_ZERO,
-		.BlendOp = D3D12_BLEND_OP_ADD,
-		.SrcBlendAlpha = D3D12_BLEND_ONE,
-		.DestBlendAlpha = D3D12_BLEND_ZERO,
-		.BlendOpAlpha = D3D12_BLEND_OP_ADD,
-		.LogicOp = D3D12_LOGIC_OP_NOOP,
-		.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL,
-	};
-	const D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDescription =
-	{
-		.pRootSignature = rootSignature,
-		.VS =
-		{
-			.pShaderBytecode = vertex->Blob->GetBufferPointer(),
-			.BytecodeLength = vertex->Blob->GetBufferSize(),
-		},
-		.PS =
-		{
-			.pShaderBytecode = usesPixelShader ? pixel->Blob->GetBufferPointer() : nullptr,
-			.BytecodeLength = usesPixelShader ? pixel->Blob->GetBufferSize() : 0,
-		},
-		.StreamOutput = {},
-		.BlendState =
-		{
-			.AlphaToCoverageEnable = false,
-			.IndependentBlendEnable = false,
-			.RenderTarget =
-			{
-				defaultBlendDescription,
-			},
-		},
-		.SampleMask = D3D12_DEFAULT_SAMPLE_MASK,
-		.RasterizerState =
-		{
-			.FillMode = D3D12_FILL_MODE_SOLID,
-			.CullMode = D3D12_CULL_MODE_BACK,
-			.FrontCounterClockwise = true,
-			.DepthBias = D3D12_DEFAULT_DEPTH_BIAS,
-			.DepthBiasClamp = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
-			.SlopeScaledDepthBias = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
-			.DepthClipEnable = true,
-			.MultisampleEnable = false,
-			.AntialiasedLineEnable = false,
-			.ForcedSampleCount = 0,
-			.ConservativeRaster = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
-		},
-		.DepthStencilState =
-		{
-			.DepthEnable = IsDepthFormat(graphicsPipeline.GetDepthFormat()),
-			.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL,
-			.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
-			.StencilEnable = IsStencilFormat(graphicsPipeline.GetDepthFormat()),
-			.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK,
-			.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK,
-			.FrontFace =
-			{
-				.StencilFailOp = D3D12_STENCIL_OP_KEEP,
-				.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP,
-				.StencilPassOp = D3D12_STENCIL_OP_KEEP,
-				.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS
-			},
-			.BackFace =
-			{
-				.StencilFailOp = D3D12_STENCIL_OP_KEEP,
-				.StencilDepthFailOp = D3D12_STENCIL_OP_KEEP,
-				.StencilPassOp = D3D12_STENCIL_OP_KEEP,
-				.StencilFunc = D3D12_COMPARISON_FUNC_ALWAYS
-			},
-		},
-		.InputLayout =
-		{
-			.pInputElementDescs = inputElements.GetData(),
-			.NumElements = static_cast<uint32>(inputElements.GetLength()),
-		},
-		.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
-		.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-		.NumRenderTargets = usesPixelShader ? 1U : 0U,
-		.RTVFormats =
-		{
-			ToD3D12(graphicsPipeline.GetRenderTargetFormat()),
-		},
-		.DSVFormat = ToD3D12(graphicsPipeline.GetDepthFormat()),
-		.SampleDesc = DefaultSampleDescription,
-		.NodeMask = 0,
-		.CachedPSO = {},
-		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE,
-	};
-	CHECK_RESULT(Device->CreateGraphicsPipelineState(&graphicsPipelineStateDescription, IID_PPV_ARGS(&pipelineState)));
-#if DEBUG
-	CHECK_RESULT(pipelineState->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
-#else
-	(void)name;
-#endif
-	GraphicsPipelines.Add(graphicsPipeline, D3D12GraphicsPipeline
-	{
-		.Parameters = Move(parameters),
-		.RootSignature = rootSignature,
-		.PipelineState = pipelineState,
-	});
+	GraphicsPipelines.Add(graphicsPipeline, CreateD3D12GraphicsPipeline(Device, graphicsPipeline, Shaders, name));
 	return graphicsPipeline;
 }
 
@@ -715,7 +335,7 @@ void GpuDevice::Write(const Buffer& buffer, const void* data)
 	}
 	else if (buffer.IsDynamic())
 	{
-		resource = AllocateBuffer(Device, buffer.GetSize(), "Upload [Buffer]"_view, true);
+		resource = AllocateBuffer(Device, buffer.GetSize(), true, "Upload [Buffer]"_view);
 		PendingBufferUploads.Add({ resource, buffer });
 	}
 
@@ -751,7 +371,7 @@ void GpuDevice::Write(const Texture& texture, const void* data)
 	uint64 totalSize;
 	Device->GetCopyableFootprints1(&textureDescription, 0, singleResource, 0, &layout, &rowCount, &rowSize, &totalSize);
 
-	const BufferResource resource = AllocateBuffer(Device, totalSize, "Upload [Texture]"_view, true);
+	const BufferResource resource = AllocateBuffer(Device, totalSize, true, "Upload [Texture]"_view);
 
 	void* mapped = nullptr;
 	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
@@ -804,7 +424,7 @@ void GpuDevice::WriteCubemap(const Texture& texture, const Array<uint8*>& faces)
 		totalSize += subresourceSizes[subresourceIndex];
 	}
 
-	const BufferResource resource = AllocateBuffer(Device, totalSize, "Upload [Cubemap Texture]"_view, true);
+	const BufferResource resource = AllocateBuffer(Device, totalSize, true, "Upload [Cubemap Texture]"_view);
 
 	void* mapped = nullptr;
 	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
@@ -1113,282 +733,4 @@ IDXGISwapChain4* GpuDevice::GetSwapChain() const
 {
 	CHECK(SwapChain);
 	return SwapChain;
-}
-
-namespace Dxc
-{
-
-static IDxcCompiler3* Compiler = nullptr;
-static IDxcUtils* Utils = nullptr;
-
-static void Init()
-{
-	constexpr IMalloc* dxcAllocator = nullptr;
-	HRESULT result = DxcCreateInstance2(dxcAllocator, CLSID_DxcCompiler, IID_PPV_ARGS(&Compiler));
-	CHECK(SUCCEEDED(result));
-	result = DxcCreateInstance2(dxcAllocator, CLSID_DxcUtils, IID_PPV_ARGS(&Utils));
-	CHECK(SUCCEEDED(result));
-}
-
-static void Shutdown()
-{
-	SAFE_RELEASE(Utils);
-	SAFE_RELEASE(Compiler);
-}
-
-D3D12Shader CompileShader(ShaderStage stage, StringView filePath)
-{
-	CHECK(Compiler && Utils);
-
-	wchar_t pathBuffer[MAX_PATH];
-	VERIFY(filePath.GetLength() < sizeof(pathBuffer), "File path length limit exceeded!");
-	const errno_t error = mbstowcs_s(nullptr, pathBuffer, reinterpret_cast<const char*>(filePath.GetData()), filePath.GetLength());
-	CHECK(error == 0);
-
-	uint32 codePage = DXC_CP_UTF8;
-	IDxcBlobEncoding* sourceBlob = nullptr;
-	HRESULT dxcResult = Utils->LoadFile(pathBuffer, &codePage, &sourceBlob);
-	VERIFY(SUCCEEDED(dxcResult), "Failed to read shader from filesystem!");
-
-	const wchar_t* arguments[] =
-	{
-		DXC_ARG_WARNINGS_ARE_ERRORS,
-		L"-HV", L"2021",
-		L"-all_resources_bound",
-#if DEBUG
-		DXC_ARG_OPTIMIZATION_LEVEL0,
-		DXC_ARG_SKIP_OPTIMIZATIONS,
-#endif
-#if RELEASE
-		L"-Qstrip_debug",
-#endif
-#if DEBUG || PROFILE
-		DXC_ARG_DEBUG,
-		L"-Qembed_debug",
-#endif
-#if RELEASE || PROFILE
-		DXC_ARG_OPTIMIZATION_LEVEL3,
-#endif
-	};
-
-	LPCWSTR entryPoint = nullptr;
-	LPCWSTR profile = nullptr;
-	switch (stage)
-	{
-	case ShaderStage::Vertex:
-		entryPoint = L"VertexMain";
-		profile = L"vs_6_0";
-		break;
-	case ShaderStage::Pixel:
-		entryPoint = L"PixelMain";
-		profile = L"ps_6_0";
-		break;
-	default:
-		CHECK(false);
-	}
-	constexpr const DxcDefine* defines = nullptr;
-
-	IDxcCompilerArgs* compileArguments = nullptr;
-	CHECK_RESULT(Utils->BuildArguments(pathBuffer, entryPoint, profile, arguments, ARRAY_COUNT(arguments), defines, 0, &compileArguments));
-
-	const DxcBuffer buffer =
-	{
-		.Ptr = static_cast<uint8*>(sourceBlob->GetBufferPointer()),
-		.Size = sourceBlob->GetBufferSize(),
-		.Encoding = DXC_CP_UTF8,
-	};
-	IDxcResult* compileResult = nullptr;
-	dxcResult = Compiler->Compile(&buffer, compileArguments->GetArguments(), compileArguments->GetCount(), nullptr, IID_PPV_ARGS(&compileResult));
-	CHECK(SUCCEEDED(dxcResult) && compileResult);
-
-	SAFE_RELEASE(compileArguments);
-	SAFE_RELEASE(sourceBlob);
-
-	const HRESULT statusResult = compileResult->GetStatus(&dxcResult);
-	CHECK(SUCCEEDED(statusResult));
-#if DEBUG
-	if (FAILED(dxcResult))
-	{
-		IDxcBlobEncoding* dxcErrorBlob = nullptr;
-		dxcResult = compileResult->GetErrorBuffer(&dxcErrorBlob);
-		CHECK(SUCCEEDED(dxcResult) && dxcErrorBlob);
-		char errorMessage[2048];
-		Platform::StringPrint("Shader Compiler: %s", errorMessage, sizeof(errorMessage), dxcErrorBlob->GetBufferPointer());
-		Platform::FatalError(errorMessage);
-	}
-#endif
-
-	IDxcBlob* shaderBlob = nullptr;
-	CHECK_RESULT(compileResult->GetResult(&shaderBlob));
-
-	IDxcBlob* reflectionBlob = {};
-	CHECK_RESULT(compileResult->GetOutput(DXC_OUT_REFLECTION, IID_PPV_ARGS(&reflectionBlob), nullptr));
-
-	const DxcBuffer reflectionBuffer =
-	{
-		.Ptr = reflectionBlob->GetBufferPointer(),
-		.Size = reflectionBlob->GetBufferSize(),
-		.Encoding = 0,
-	};
-	ID3D12ShaderReflection* shaderReflection = {};
-	CHECK_RESULT(Utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&shaderReflection)));
-
-	SAFE_RELEASE(reflectionBlob);
-	SAFE_RELEASE(compileResult);
-
-	return D3D12Shader { shaderBlob, shaderReflection };
-}
-
-static DXGI_FORMAT MaskToFormat(uint8 mask)
-{
-	switch (mask)
-	{
-	case 0b1:
-		return DXGI_FORMAT_R32_FLOAT;
-	case 0b11:
-		return DXGI_FORMAT_R32G32_FLOAT;
-	case 0b111:
-		return DXGI_FORMAT_R32G32B32_FLOAT;
-	case 0b1111:
-		return DXGI_FORMAT_R32G32B32A32_FLOAT;
-	default:
-		break;
-	}
-	CHECK(false);
-	return DXGI_FORMAT_UNKNOWN;
-}
-
-static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array<D3D12_INPUT_ELEMENT_DESC>& inputElements)
-{
-	D3D12_SHADER_DESC shaderDescription = {};
-	CHECK_RESULT(shaderReflection->GetDesc(&shaderDescription));
-
-	for (uint32 i = 0; i < shaderDescription.InputParameters; ++i)
-	{
-		D3D12_SIGNATURE_PARAMETER_DESC inputParameterDescription = {};
-		CHECK_RESULT(shaderReflection->GetInputParameterDesc(i, &inputParameterDescription));
-
-		inputElements.Add
-		(
-			D3D12_INPUT_ELEMENT_DESC
-			{
-				.SemanticName = inputParameterDescription.SemanticName,
-				.SemanticIndex = inputParameterDescription.SemanticIndex,
-				.Format = MaskToFormat(inputParameterDescription.Mask),
-				.InputSlot = inputParameterDescription.Register,
-				.AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT,
-				.InputSlotClass = D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,
-				.InstanceDataStepRate = 0,
-			}
-		);
-	}
-}
-
-static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
-								  HashTable<String, RootParameter>& rootParameters)
-{
-	D3D12_SHADER_DESC shaderDescription = {};
-	CHECK_RESULT(shaderReflection->GetDesc(&shaderDescription));
-
-	for (uint32 i = 0; i < shaderDescription.BoundResources; ++i)
-	{
-		D3D12_SHADER_INPUT_BIND_DESC resourceDescription = {};
-		CHECK_RESULT(shaderReflection->GetResourceBindingDesc(i, &resourceDescription));
-
-		const usize resourceNameLength = Platform::StringLength(resourceDescription.Name);
-		String resourceName = String { resourceNameLength, &GlobalAllocator::Get() };
-		for (usize j = 0; j < resourceNameLength; ++j)
-		{
-			resourceName.Append(resourceDescription.Name[j]);
-		}
-
-		RootParameter parameter;
-
-		if (resourceDescription.Type == D3D_SIT_CBUFFER)
-		{
-			parameter.Parameter = D3D12_ROOT_PARAMETER1
-			{
-				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV,
-				.Descriptor =
-				{
-					.ShaderRegister = resourceDescription.BindPoint,
-					.RegisterSpace = resourceDescription.Space,
-					.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-				},
-				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-			};
-		}
-		else if (resourceDescription.Type == D3D_SIT_STRUCTURED)
-		{
-			parameter.Parameter = D3D12_ROOT_PARAMETER1
-			{
-				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
-				.Descriptor =
-				{
-					.ShaderRegister = resourceDescription.BindPoint,
-					.RegisterSpace = resourceDescription.Space,
-					.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-				},
-				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-			};
-		}
-		else if (resourceDescription.Type == D3D_SIT_TEXTURE)
-		{
-			parameter.Ranges.Add(
-			{
-				.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-				.NumDescriptors = resourceDescription.BindCount,
-				.BaseShaderRegister = resourceDescription.BindPoint,
-				.RegisterSpace = resourceDescription.Space,
-				.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
-			});
-
-			parameter.Parameter = D3D12_ROOT_PARAMETER1
-			{
-				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-				.DescriptorTable =
-				{
-					.NumDescriptorRanges = static_cast<uint32>(parameter.Ranges.GetLength()),
-					.pDescriptorRanges = parameter.Ranges.GetData(),
-				},
-				.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
-			};
-		}
-		else if (resourceDescription.Type == D3D_SIT_SAMPLER)
-		{
-			parameter.Ranges.Add(
-			{
-				.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
-				.NumDescriptors = resourceDescription.BindCount,
-				.BaseShaderRegister = resourceDescription.BindPoint,
-				.RegisterSpace = resourceDescription.Space,
-				.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE,
-				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
-			});
-
-			parameter.Parameter = D3D12_ROOT_PARAMETER1
-			{
-				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-				.DescriptorTable =
-				{
-					.NumDescriptorRanges = static_cast<uint32>(parameter.Ranges.GetLength()),
-					.pDescriptorRanges = parameter.Ranges.GetData(),
-				},
-				.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
-			};
-		}
-		else
-		{
-			CHECK(false);
-		}
-
-		rootParameters.Add
-		(
-			Move(resourceName),
-			Move(parameter)
-		);
-	}
-}
-
 }

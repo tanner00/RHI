@@ -98,6 +98,26 @@ inline DXGI_FORMAT ToD3D12(TextureFormat format)
 	return DXGI_FORMAT_UNKNOWN;
 }
 
+inline DXGI_FORMAT ToD3D12View(TextureFormat format, ViewType type)
+{
+	switch (format)
+	{
+	case TextureFormat::Depth24Stencil8:
+		if (type == ViewType::ShaderResource)
+		{
+			return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		}
+		break;
+	case TextureFormat::Depth32:
+		if (type == ViewType::ShaderResource)
+		{
+			return DXGI_FORMAT_R32_TYPELESS;
+		}
+		break;
+	}
+	return ToD3D12(format);
+}
+
 inline bool IsDepthFormat(TextureFormat format)
 {
 	return format == TextureFormat::Depth32 || format == TextureFormat::Depth24Stencil8;
@@ -107,3 +127,7 @@ inline bool IsStencilFormat(TextureFormat format)
 {
 	return format == TextureFormat::Depth24Stencil8;
 }
+
+TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name);
+
+D3D12Texture CreateD3D12Texture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name, TextureResource existingResource);
