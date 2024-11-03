@@ -69,14 +69,14 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 			continue;
 		}
 
-		CHECK_RESULT(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_1, IID_PPV_ARGS(&device)));
+		CHECK_RESULT(D3D12CreateDevice(adapter, D3D_FEATURE_LEVEL_12_2, IID_PPV_ARGS(&device)));
 		SAFE_RELEASE(adapter);
 		if (device)
 		{
 			break;
 		}
 	}
-	VERIFY(device, "Failed to create a 12_1 capable D3D device!");
+	VERIFY(device, "Failed to create a 12_2 capable D3D device!");
 	Device = device;
 
 #if DEBUG
@@ -127,20 +127,13 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 	CHECK_RESULT(Device->SetStablePowerState(true));
 #endif
 
-	D3D12_FEATURE_DATA_ROOT_SIGNATURE featureRootSignature =
-	{
-		.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1,
-	};
-	CHECK_RESULT(Device->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureRootSignature, sizeof(featureRootSignature)));
-	VERIFY(featureRootSignature.HighestVersion >= D3D_ROOT_SIGNATURE_VERSION_1_1, "D3D12: Expected Root Signature version 1.1 or higher!");
-
 	D3D12_FEATURE_DATA_D3D12_OPTIONS12 featureEnhancedBarriers = {};
 	CHECK_RESULT(Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS12, &featureEnhancedBarriers, sizeof(featureEnhancedBarriers)));
 	VERIFY(featureEnhancedBarriers.EnhancedBarriersSupported, "D3D12: Expected Enhanced Barrier support!");
 
-	D3D12_FEATURE_DATA_D3D12_OPTIONS featureResourceHeapTier = {};
-	CHECK_RESULT(Device->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS, &featureResourceHeapTier, sizeof(featureResourceHeapTier)));
-	VERIFY(featureResourceHeapTier.ResourceHeapTier >= D3D12_RESOURCE_HEAP_TIER_2, "D3D12: Expected Resource Heap Tier 2 or higher!");
+	D3D12_FEATURE_DATA_SHADER_MODEL featureShaderModel = { D3D_SHADER_MODEL_6_6 };
+	CHECK_RESULT(Device->CheckFeatureSupport(D3D12_FEATURE_SHADER_MODEL, &featureShaderModel, sizeof(featureShaderModel)));
+	VERIFY(featureShaderModel.HighestShaderModel >= D3D_SHADER_MODEL_6_6, "D3D12: Expected Shader Model 6.6 support!");
 
 	CHECK_RESULT(Device->CreateFence(FrameFenceValues[0], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&FrameFence)));
 	++FrameFenceValues[0];

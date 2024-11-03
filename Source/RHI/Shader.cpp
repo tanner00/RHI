@@ -66,11 +66,11 @@ static IDxcResult* CompileShader(ShaderStage stage, StringView filePath)
 	{
 	case ShaderStage::Vertex:
 		entryPoint = L"VertexMain";
-		profile = L"vs_6_0";
+		profile = L"vs_6_6";
 		break;
 	case ShaderStage::Pixel:
 		entryPoint = L"PixelMain";
-		profile = L"ps_6_0";
+		profile = L"ps_6_6";
 		break;
 	default:
 		CHECK(false);
