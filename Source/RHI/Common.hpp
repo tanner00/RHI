@@ -2,7 +2,6 @@
 
 #include "Luft/Base.hpp"
 #include "Luft/Error.hpp"
-#include "Luft/HashTable.hpp"
 
 #define UINT uint32
 #include <dxgicommon.h>

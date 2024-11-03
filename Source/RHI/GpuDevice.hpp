@@ -7,10 +7,6 @@
 #include "Shader.hpp"
 #include "ViewHeap.hpp"
 
-#include "Luft/Array.hpp"
-#include "Luft/Base.hpp"
-#include "Luft/NoCopy.hpp"
-
 class GpuDevice : public NoCopy
 {
 public:

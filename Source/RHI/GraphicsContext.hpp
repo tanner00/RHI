@@ -2,7 +2,6 @@
 
 #include "Common.hpp"
 
-#include "Luft/Base.hpp"
 #include "Luft/NoCopy.hpp"
 #include "Luft/String.hpp"
 

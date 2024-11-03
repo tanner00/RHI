@@ -2,6 +2,8 @@
 
 #include "Common.hpp"
 
+#include "Luft/HashTable.hpp"
+
 enum class BufferType
 {
 	ConstantBuffer,

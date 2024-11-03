@@ -2,6 +2,8 @@
 
 #include "Common.hpp"
 
+#include "Luft/HashTable.hpp"
+
 #include "D3D12/dxgiformat.h"
 
 enum class TextureType
