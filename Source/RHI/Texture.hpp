@@ -68,8 +68,8 @@ inline bool operator==(const Texture& a, const Texture& b)
 
 TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name);
 
-void WriteTexture(ID3D12Device11* device, const Texture& texture, const void* data, Array<UploadPair<Texture>>* pendingTextureUploads);
-void WriteCubemapTexture(ID3D12Device11* device, const Texture& texture, const Array<uint8*>& faces, Array<UploadPair<Texture>>* pendingTextureUploads);
+UploadPair<Texture> WriteTexture(ID3D12Device11* device, const Texture& texture, const void* data);
+UploadPair<Texture> WriteCubemapTexture(ID3D12Device11* device, const Texture& texture, const Array<uint8*>& faces);
 
 class D3D12Texture
 {

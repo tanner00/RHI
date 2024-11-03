@@ -318,12 +318,12 @@ void GpuDevice::Write(const Buffer& buffer, const void* data)
 
 void GpuDevice::Write(const Texture& texture, const void* data)
 {
-	WriteTexture(Device, texture, data, &PendingTextureUploads);
+	PendingTextureUploads.Add(WriteTexture(Device, texture, data));
 }
 
 void GpuDevice::WriteCubemap(const Texture& texture, const Array<uint8*>& faces)
 {
-	WriteCubemapTexture(Device, texture, faces, &PendingTextureUploads);
+	PendingTextureUploads.Add(WriteCubemapTexture(Device, texture, faces));
 }
 
 void GpuDevice::Submit(const GraphicsContext& context)

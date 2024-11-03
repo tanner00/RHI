@@ -54,7 +54,7 @@ TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, 
 	return resource;
 }
 
-void WriteTexture(ID3D12Device11* device, const Texture& texture, const void* data, Array<UploadPair<Texture>>* pendingTextureUploads)
+UploadPair<Texture> WriteTexture(ID3D12Device11* device, const Texture& texture, const void* data)
 {
 	CHECK(texture.GetType() == TextureType::Rectangle);
 
@@ -95,10 +95,14 @@ void WriteTexture(ID3D12Device11* device, const Texture& texture, const void* da
 	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
 
-	pendingTextureUploads->Add({ resource, texture });
+	return UploadPair<Texture>
+	{
+		.Source = resource,
+		.Destination = texture,
+	};
 }
 
-void WriteCubemapTexture(ID3D12Device11* device, const Texture& texture, const Array<uint8*>& faces, Array<UploadPair<Texture>>* pendingTextureUploads)
+UploadPair<Texture> WriteCubemapTexture(ID3D12Device11* device, const Texture& texture, const Array<uint8*>& faces)
 {
 	CHECK(texture.GetType() == TextureType::Cubemap);
 	CHECK(faces.GetLength() == 6);
@@ -151,7 +155,11 @@ void WriteCubemapTexture(ID3D12Device11* device, const Texture& texture, const A
 	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
 
-	pendingTextureUploads->Add({ resource, texture });
+	return UploadPair<Texture>
+	{
+		.Source = resource,
+		.Destination = texture,
+	};
 }
 
 D3D12Texture::D3D12Texture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, TextureResource existingResource, StringView name)

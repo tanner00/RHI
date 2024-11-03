@@ -78,8 +78,9 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, const voi
 void D3D12Buffer::Write(ID3D12Device11* device, const Buffer& buffer, const void* data, usize frameIndex,
 						Array<UploadPair<Buffer>>* pendingBufferUploads) const
 {
-	BufferResource resource = nullptr;
 	CHECK(!buffer.IsStatic());
+
+	BufferResource resource = nullptr;
 	if (buffer.IsStream())
 	{
 		resource = GetBufferResource(frameIndex, true);
@@ -87,7 +88,11 @@ void D3D12Buffer::Write(ID3D12Device11* device, const Buffer& buffer, const void
 	else if (buffer.IsDynamic())
 	{
 		resource = AllocateBuffer(device, buffer.GetSize(), true, "Upload [Buffer]"_view);
-		pendingBufferUploads->Add({ resource, buffer });
+		pendingBufferUploads->Add(UploadPair<Buffer>
+		{
+			.Source = resource,
+			.Destination = buffer,
+		});
 	}
 
 	void* mapped = nullptr;
