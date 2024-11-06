@@ -4,16 +4,10 @@
 #include "dxc/d3d12shader.h"
 #include "dxc/dxcapi.h"
 
-struct RootParameter
-{
-	D3D12_ROOT_PARAMETER1 Parameter;
-	Array<D3D12_DESCRIPTOR_RANGE1> Ranges;
-};
-
 namespace Dxc
 {
 static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array<D3D12_INPUT_ELEMENT_DESC>& inputElements);
-static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection, HashTable<String, RootParameter>& rootParameters);
+static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection, HashTable<String, D3D12_ROOT_PARAMETER1>& rootParameters);
 }
 
 static constexpr usize BindingBucketCount = 4;
@@ -39,7 +33,7 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device, const Graph
 	Array<D3D12_INPUT_ELEMENT_DESC> inputElements;
 	Dxc::ReflectInputElements(vertex->Reflection, inputElements);
 
-	HashTable<String, RootParameter> rootParameters(BindingBucketCount);
+	HashTable<String, D3D12_ROOT_PARAMETER1> rootParameters(BindingBucketCount);
 	Dxc::ReflectRootParameters(vertex->Reflection, rootParameters);
 	if (usesPixelShader)
 	{
@@ -50,7 +44,7 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device, const Graph
 	usize rootParameterIndex = 0;
 	for (auto& [resourceName, rootParameter] : rootParameters)
 	{
-		rootParametersList.Add(rootParameter.Parameter);
+		rootParametersList.Add(rootParameter);
 
 		Parameters.Add(Move(resourceName), rootParameterIndex);
 		++rootParameterIndex;
@@ -65,7 +59,9 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device, const Graph
 			.pParameters = rootParametersList.GetData(),
 			.NumStaticSamplers = 0,
 			.pStaticSamplers = nullptr,
-			.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT,
+			.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
+					 D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |
+					 D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED,
 		},
 	};
 	ID3DBlob* serializedRootSignature = nullptr;
@@ -239,7 +235,7 @@ static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array
 }
 
 static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
-								  HashTable<String, RootParameter>& rootParameters)
+								  HashTable<String, D3D12_ROOT_PARAMETER1>& rootParameters)
 {
 	D3D12_SHADER_DESC shaderDescription = {};
 	CHECK_RESULT(shaderReflection->GetDesc(&shaderDescription));
@@ -249,6 +245,8 @@ static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 		D3D12_SHADER_INPUT_BIND_DESC resourceDescription = {};
 		CHECK_RESULT(shaderReflection->GetResourceBindingDesc(i, &resourceDescription));
 
+		CHECK(resourceDescription.Type == D3D_SIT_CBUFFER);
+
 		const usize resourceNameLength = Platform::StringLength(resourceDescription.Name);
 		String resourceName = String { resourceNameLength, &GlobalAllocator::Get() };
 		for (usize j = 0; j < resourceNameLength; ++j)
@@ -256,11 +254,10 @@ static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 			resourceName.Append(resourceDescription.Name[j]);
 		}
 
-		RootParameter parameter;
-
-		if (resourceDescription.Type == D3D_SIT_CBUFFER)
-		{
-			parameter.Parameter = D3D12_ROOT_PARAMETER1
+		rootParameters.Add
+		(
+			Move(resourceName),
+			D3D12_ROOT_PARAMETER1
 			{
 				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV,
 				.Descriptor =
@@ -270,77 +267,7 @@ static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 					.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
 				},
 				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-			};
-		}
-		else if (resourceDescription.Type == D3D_SIT_STRUCTURED)
-		{
-			parameter.Parameter = D3D12_ROOT_PARAMETER1
-			{
-				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV,
-				.Descriptor =
-				{
-					.ShaderRegister = resourceDescription.BindPoint,
-					.RegisterSpace = resourceDescription.Space,
-					.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-				},
-				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-			};
-		}
-		else if (resourceDescription.Type == D3D_SIT_TEXTURE)
-		{
-			parameter.Ranges.Add(
-			{
-				.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV,
-				.NumDescriptors = resourceDescription.BindCount,
-				.BaseShaderRegister = resourceDescription.BindPoint,
-				.RegisterSpace = resourceDescription.Space,
-				.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
-			});
-
-			parameter.Parameter = D3D12_ROOT_PARAMETER1
-			{
-				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-				.DescriptorTable =
-				{
-					.NumDescriptorRanges = static_cast<uint32>(parameter.Ranges.GetLength()),
-					.pDescriptorRanges = parameter.Ranges.GetData(),
-				},
-				.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
-			};
-		}
-		else if (resourceDescription.Type == D3D_SIT_SAMPLER)
-		{
-			parameter.Ranges.Add(
-			{
-				.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER,
-				.NumDescriptors = resourceDescription.BindCount,
-				.BaseShaderRegister = resourceDescription.BindPoint,
-				.RegisterSpace = resourceDescription.Space,
-				.Flags = D3D12_DESCRIPTOR_RANGE_FLAG_NONE,
-				.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND,
-			});
-
-			parameter.Parameter = D3D12_ROOT_PARAMETER1
-			{
-				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE,
-				.DescriptorTable =
-				{
-					.NumDescriptorRanges = static_cast<uint32>(parameter.Ranges.GetLength()),
-					.pDescriptorRanges = parameter.Ranges.GetData(),
-				},
-				.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL,
-			};
-		}
-		else
-		{
-			CHECK(false);
-		}
-
-		rootParameters.Add
-		(
-			Move(resourceName),
-			Move(parameter)
+			}
 		);
 	}
 }

@@ -32,8 +32,8 @@ public:
 	RHI_HANDLE_BODY(Buffer);
 
 	usize GetSize() const { return Description.Size; }
-	usize GetStride() const { return Description.Stride; }
-	usize GetCount() const { return Description.Size / (Description.Stride ? Description.Stride : 1); }
+	usize GetStride() const { return Description.Stride ? Description.Stride : Description.Size; }
+	usize GetCount() const { return Description.Size / GetStride(); }
 
 	BufferType GetType() const { return Description.Type; }
 
@@ -65,26 +65,41 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 class D3D12Buffer
 {
 public:
-	D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, StringView name);
-	D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, const void* staticData, Array<UploadPair<Buffer>>* pendingBufferUploads,
-				StringView name);
+	D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceViewHeap, const Buffer& buffer, StringView name);
+	D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceViewHeap, const Buffer& buffer, const void* staticData,
+				Array<UploadPair<Buffer>>* pendingBufferUploads, StringView name);
 
 	BufferResource GetOnlyBufferResource() const
 	{
-		CHECK(Resources[0] && !Resources[1]);
-		return Resources[0];
+		CHECK(Resource[0] && !Resource[1]);
+		return Resource[0];
 	}
 
 	BufferResource GetBufferResource(usize index, bool stream) const
 	{
 		CHECK(index < FramesInFlight);
-		const BufferResource current = stream ? Resources[index] : Resources[0];
+		const BufferResource current = stream ? Resource[index] : Resource[0];
 		CHECK(current);
 		return current;
+	}
+
+	uint32 GetOnlyHeapIndex() const
+	{
+		CHECK(HeapIndex[0] && !HeapIndex[1]);
+		return HeapIndex[0];
+	}
+
+	uint32 GetHeapIndex(usize index, bool stream) const
+	{
+		CHECK(index < FramesInFlight);
+		const uint32 heapIndex = stream ? HeapIndex[index] : HeapIndex[0];
+		CHECK(heapIndex);
+		return heapIndex;
 	}
 
 	void Write(ID3D12Device11* device, const Buffer& buffer, const void* data, usize frameIndex,
 			   Array<UploadPair<Buffer>>* pendingBufferUploads) const;
 
-	BufferResource Resources[FramesInFlight];
+	BufferResource Resource[FramesInFlight];
+	uint32 HeapIndex[FramesInFlight];
 };

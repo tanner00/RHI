@@ -1,6 +1,7 @@
 #include "Texture.hpp"
 #include "BarrierConversion.hpp"
 #include "Buffer.hpp"
+#include "ViewHeap.hpp"
 
 #include "D3D12/d3d12.h"
 
@@ -162,8 +163,115 @@ UploadPair<Texture> WriteCubemapTexture(ID3D12Device11* device, const Texture& t
 	};
 }
 
-D3D12Texture::D3D12Texture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, TextureResource existingResource, StringView name)
-	: Resource(existingResource ? existingResource : AllocateTexture(device, texture, initialLayout, name))
-	, HeapIndices()
+static uint32 CreateShaderResourceView(ID3D12Device11* device, ViewHeap* shaderResourceViewHeap, TextureResource resource, const Texture& texture)
 {
+	const uint32 heapIndex = shaderResourceViewHeap->AllocateIndex();
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDescription;
+	switch (texture.GetType())
+	{
+	case TextureType::Rectangle:
+		shaderResourceViewDescription =
+		{
+			.Format = ToD3D12View(texture.GetFormat(), ViewType::ShaderResource),
+			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+			.Texture2D =
+			{
+				.MostDetailedMip = 0,
+				.MipLevels = 1,
+				.PlaneSlice = 0,
+				.ResourceMinLODClamp = 0,
+			},
+		};
+		break;
+	case TextureType::Cubemap:
+		shaderResourceViewDescription =
+		{
+			.Format = ToD3D12View(texture.GetFormat(), ViewType::ShaderResource),
+			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE,
+			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+			.TextureCube =
+			{
+				.MostDetailedMip = 0,
+				.MipLevels = 1,
+				.ResourceMinLODClamp = 0,
+			},
+		};
+		break;
+	default:
+		CHECK(false);
+		break;
+	}
+	device->CreateShaderResourceView
+	(
+		resource,
+		&shaderResourceViewDescription,
+		D3D12_CPU_DESCRIPTOR_HANDLE { shaderResourceViewHeap->GetCpu(heapIndex) }
+	);
+	return heapIndex;
+}
+
+static uint32 CreateRenderTargetView(ID3D12Device11* device, ViewHeap* renderTargetViewHeap, TextureResource resource, const Texture& texture)
+{
+	const uint32 heapIndex = renderTargetViewHeap->AllocateIndex();
+
+	const D3D12_RENDER_TARGET_VIEW_DESC renderTargetViewDescription =
+	{
+		.Format = ToD3D12View(texture.GetFormat(), ViewType::RenderTarget),
+		.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
+		.Texture2D =
+		{
+			.MipSlice = 0,
+			.PlaneSlice = 0,
+		},
+	};
+	device->CreateRenderTargetView
+	(
+		resource,
+		&renderTargetViewDescription,
+		D3D12_CPU_DESCRIPTOR_HANDLE { renderTargetViewHeap->GetCpu(heapIndex) }
+	);
+	return heapIndex;
+}
+
+static uint32 CreateDepthStencilView(ID3D12Device11* device, ViewHeap* depthStencilViewHeap, TextureResource resource, const Texture& texture)
+{
+	const uint32 heapIndex = depthStencilViewHeap->AllocateIndex();
+
+	const D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilViewDescription =
+	{
+		.Format = ToD3D12View(texture.GetFormat(), ViewType::DepthStencil),
+		.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+		.Texture2D =
+		{
+			.MipSlice = 0,
+		},
+	};
+	device->CreateDepthStencilView
+	(
+		resource,
+		&depthStencilViewDescription,
+		D3D12_CPU_DESCRIPTOR_HANDLE { depthStencilViewHeap->GetCpu(heapIndex) }
+	);
+	return heapIndex;
+}
+
+
+D3D12Texture::D3D12Texture(ID3D12Device11* device, ViewHeap* shaderResourceViewHeap, ViewHeap* renderTargetViewHeap, ViewHeap* depthStencilViewHeap,
+						   const Texture& texture, BarrierLayout initialLayout, TextureResource existingResource, StringView name)
+	: Resource(existingResource ? existingResource : AllocateTexture(device, texture, initialLayout, name))
+{
+	if (IsDepthFormat(texture.GetFormat()))
+	{
+		HeapIndex = CreateDepthStencilView(device, depthStencilViewHeap, Resource, texture);
+	}
+	else if (texture.IsRenderTarget())
+	{
+		HeapIndex = CreateRenderTargetView(device, renderTargetViewHeap, Resource, texture);
+	}
+	else
+	{
+		HeapIndex = CreateShaderResourceView(device, shaderResourceViewHeap, Resource, texture);
+	}
 }

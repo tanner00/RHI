@@ -76,12 +76,15 @@ UploadPair<Texture> WriteCubemapTexture(ID3D12Device11* device, const Texture& t
 class D3D12Texture
 {
 public:
-	D3D12Texture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, TextureResource existingResource, StringView name);
+	D3D12Texture(ID3D12Device11* device, ViewHeap* shaderResourceViewHeap, ViewHeap* renderTargetViewHeap, ViewHeap* depthStencilViewHeap,
+				 const Texture& texture, BarrierLayout initialLayout, TextureResource existingResource, StringView name);
 
 	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
 
+	uint32 GetHeapIndex() const { CHECK(HeapIndex); return HeapIndex; }
+
 	TextureResource Resource;
-	usize HeapIndices[static_cast<usize>(ViewType::Count)];
+	uint32 HeapIndex;
 };
 
 inline DXGI_FORMAT ToD3D12(TextureFormat format)

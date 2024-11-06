@@ -1,5 +1,6 @@
 #include "Buffer.hpp"
 #include "BarrierConversion.hpp"
+#include "ViewHeap.hpp"
 
 #include "D3D12/d3d12.h"
 
@@ -40,7 +41,7 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 	return resource;
 }
 
-D3D12Buffer::D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, StringView name)
+D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceViewHeap, const Buffer& buffer, StringView name)
 {
 	CHECK(buffer.GetSize() != 0);
 
@@ -50,18 +51,57 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, StringVie
 		const bool validResource = i < resourceCount;
 		if (validResource)
 		{
-			Resources[i] = AllocateBuffer(device, buffer.GetSize(), buffer.IsStream(), name);
+			Resource[i] = AllocateBuffer(device, buffer.GetSize(), buffer.IsStream(), name);
+
+			HeapIndex[i] = (buffer.GetType() != BufferType::VertexBuffer) ? constantBufferShaderResourceViewHeap->AllocateIndex() : 0;
+
+			if (buffer.GetType() == BufferType::ConstantBuffer)
+			{
+				const D3D12_CONSTANT_BUFFER_VIEW_DESC viewDescription =
+				{
+					.BufferLocation = Resource[i]->GetGPUVirtualAddress(),
+					.SizeInBytes = static_cast<uint32>(buffer.GetSize()),
+				};
+				device->CreateConstantBufferView
+				(
+					&viewDescription,
+					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceViewHeap->GetCpu(HeapIndex[i]) }
+				);
+			}
+			else if (buffer.GetType() == BufferType::StructuredBuffer)
+			{
+				const D3D12_SHADER_RESOURCE_VIEW_DESC viewDescription =
+				{
+					.Format = DXGI_FORMAT_UNKNOWN,
+					.ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
+					.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+					.Buffer =
+					{
+						.FirstElement = 0,
+						.NumElements = static_cast<uint32>(buffer.GetCount()),
+						.StructureByteStride = static_cast<uint32>(buffer.GetStride()),
+						.Flags = D3D12_BUFFER_SRV_FLAG_NONE,
+					},
+				};
+				device->CreateShaderResourceView
+				(
+					Resource[i],
+					&viewDescription,
+					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceViewHeap->GetCpu(HeapIndex[i]) }
+				);
+			}
 		}
 		else
 		{
-			Resources[i] = nullptr;
+			Resource[i] = nullptr;
+			HeapIndex[i] = 0;
 		}
 	}
 }
 
-D3D12Buffer::D3D12Buffer(ID3D12Device11* device, const Buffer& buffer, const void* staticData, Array<UploadPair<Buffer>>* pendingBufferUploads,
-						 StringView name)
-	: D3D12Buffer(device, buffer, name)
+D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceViewHeap, const Buffer& buffer, const void* staticData,
+						 Array<UploadPair<Buffer>>* pendingBufferUploads, StringView name)
+	: D3D12Buffer(device, constantBufferShaderResourceViewHeap, buffer, name)
 {
 	CHECK(buffer.IsStatic());
 

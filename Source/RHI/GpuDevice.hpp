@@ -32,6 +32,10 @@ public:
 	void Write(const Texture& texture, const void* data);
 	void WriteCubemap(const Texture& texture, const Array<uint8*>& faces);
 
+	uint32 Get(const Buffer& buffer);
+	uint32 Get(const Texture& texture);
+	uint32 Get(const Sampler& sampler);
+
 	void Submit(const GraphicsContext& context);
 	void Present();
 	void WaitForIdle();
@@ -47,10 +51,6 @@ private:
 
 	void ReleaseFrameDeletes();
 	void AddPendingDelete(IUnknown* pendingDelete);
-
-	void EnsureShaderResourceView(const Texture& texture);
-	void EnsureRenderTargetView(const Texture& texture);
-	void EnsureDepthStencilView(const Texture& texture);
 
 	ID3D12Device11* GetDevice() const;
 	IDXGISwapChain4* GetSwapChain() const;

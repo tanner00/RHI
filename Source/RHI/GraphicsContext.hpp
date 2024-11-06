@@ -34,11 +34,8 @@ public:
 
 	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot) const;
 	void SetIndexBuffer(const Buffer& indexBuffer) const;
-	void SetConstantBuffer(StringView name, const Buffer& constantBuffer, usize offsetIndex = 0) const;
-	void SetBuffer(StringView name, const Buffer& buffer) const;
 
-	void SetTexture(StringView name, const Texture& texture) const;
-	void SetSampler(StringView name, const Sampler& sampler) const;
+	void SetConstantBuffer(StringView name, const Buffer& constantBuffer, usize offsetIndex = 0) const;
 
 	void Draw(usize vertexCount) const;
 	void DrawIndexed(usize indexCount) const;

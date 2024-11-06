@@ -189,21 +189,26 @@ GpuDevice::~GpuDevice()
 Buffer GpuDevice::CreateBuffer(StringView name, const BufferDescription& description)
 {
 	const Buffer buffer = { HandleIndex++, description };
-	Buffers.Add(buffer, D3D12Buffer(Device, buffer, name));
+	Buffers.Add(buffer, D3D12Buffer(Device, &ConstantBufferShaderResourceUnorderedAccessViewHeap, buffer, name));
 	return buffer;
 }
 
 Buffer GpuDevice::CreateBuffer(StringView name, const void* staticData, const BufferDescription& description)
 {
 	const Buffer buffer = { HandleIndex++, description };
-	Buffers.Add(buffer, D3D12Buffer(Device, buffer, staticData, &PendingBufferUploads, name));
+	Buffers.Add(buffer, D3D12Buffer(Device, &ConstantBufferShaderResourceUnorderedAccessViewHeap, buffer, staticData, &PendingBufferUploads, name));
 	return buffer;
 }
 
 Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, const TextureDescription& description, TextureResource existingResource)
 {
 	const Texture texture = { HandleIndex++, description };
-	Textures.Add(texture, D3D12Texture(Device, texture, initialLayout, existingResource, name));
+	Textures.Add(texture, D3D12Texture
+	(
+		Device,
+		&ConstantBufferShaderResourceUnorderedAccessViewHeap, &RenderTargetViewHeap, &DepthStencilViewHeap,
+		texture, initialLayout, existingResource, name
+	));
 	return texture;
 }
 
@@ -235,7 +240,7 @@ void GpuDevice::DestroyBuffer(Buffer* buffer)
 		return;
 	}
 
-	for (const BufferResource resource : Buffers[*buffer].Resources)
+	for (const BufferResource resource : Buffers[*buffer].Resource)
 	{
 		AddPendingDelete(resource);
 	}
@@ -317,6 +322,21 @@ void GpuDevice::Write(const Texture& texture, const void* data)
 void GpuDevice::WriteCubemap(const Texture& texture, const Array<uint8*>& faces)
 {
 	PendingTextureUploads.Add(WriteCubemapTexture(Device, texture, faces));
+}
+
+uint32 GpuDevice::Get(const Buffer& buffer)
+{
+	return Buffers[buffer].GetHeapIndex(GetFrameIndex(), buffer.IsStream());
+}
+
+uint32 GpuDevice::Get(const Texture& texture)
+{
+	return Textures[texture].GetHeapIndex();
+}
+
+uint32 GpuDevice::Get(const Sampler& sampler)
+{
+	return Samplers[sampler].GetHeapIndex();
 }
 
 void GpuDevice::Submit(const GraphicsContext& context)
@@ -482,123 +502,6 @@ void GpuDevice::AddPendingDelete(IUnknown* pendingDelete)
 	{
 		PendingDeletes[FrameIndex].Add(pendingDelete);
 	}
-}
-
-void GpuDevice::EnsureShaderResourceView(const Texture& texture)
-{
-	static constexpr ViewType viewType = ViewType::ShaderResource;
-
-	D3D12Texture& apiTexture = Textures[texture];
-	if (apiTexture.HeapIndices[static_cast<usize>(viewType)])
-	{
-		return;
-	}
-
-	const usize heapIndex = ConstantBufferShaderResourceUnorderedAccessViewHeap.AllocateIndex();
-	apiTexture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDescription;
-	switch (texture.GetType())
-	{
-	case TextureType::Rectangle:
-		shaderResourceViewDescription =
-		{
-			.Format = ToD3D12View(texture.GetFormat(), viewType),
-			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
-			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-			.Texture2D =
-			{
-				.MostDetailedMip = 0,
-				.MipLevels = 1,
-				.PlaneSlice = 0,
-				.ResourceMinLODClamp = 0,
-			},
-		};
-		break;
-	case TextureType::Cubemap:
-		shaderResourceViewDescription =
-		{
-			.Format = ToD3D12View(texture.GetFormat(), viewType),
-			.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE,
-			.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
-			.TextureCube =
-			{
-				.MostDetailedMip = 0,
-				.MipLevels = 1,
-				.ResourceMinLODClamp = 0,
-			},
-		};
-		break;
-	default:
-		CHECK(false);
-		break;
-	}
-	Device->CreateShaderResourceView
-	(
-		apiTexture.Resource,
-		&shaderResourceViewDescription,
-		D3D12_CPU_DESCRIPTOR_HANDLE { ConstantBufferShaderResourceUnorderedAccessViewHeap.GetCpu(heapIndex) }
-	);
-}
-
-void GpuDevice::EnsureRenderTargetView(const Texture& texture)
-{
-	static constexpr ViewType viewType = ViewType::RenderTarget;
-
-	D3D12Texture& apiTexture = Textures[texture];
-	if (apiTexture.HeapIndices[static_cast<usize>(viewType)])
-	{
-		return;
-	}
-
-	const usize heapIndex = RenderTargetViewHeap.AllocateIndex();
-	apiTexture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
-
-	const D3D12_RENDER_TARGET_VIEW_DESC renderTargetViewDescription =
-	{
-		.Format = ToD3D12View(texture.GetFormat(), viewType),
-		.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
-		.Texture2D =
-		{
-			.MipSlice = 0,
-			.PlaneSlice = 0,
-		},
-	};
-	Device->CreateRenderTargetView(
-		apiTexture.Resource,
-		&renderTargetViewDescription,
-		D3D12_CPU_DESCRIPTOR_HANDLE { RenderTargetViewHeap.GetCpu(heapIndex) }
-	);
-}
-
-void GpuDevice::EnsureDepthStencilView(const Texture& texture)
-{
-	static constexpr ViewType viewType = ViewType::DepthStencil;
-
-	D3D12Texture& apiTexture = Textures[texture];
-	if (apiTexture.HeapIndices[static_cast<usize>(viewType)])
-	{
-		return;
-	}
-
-	const usize heapIndex = DepthStencilViewHeap.AllocateIndex();
-	apiTexture.HeapIndices[static_cast<usize>(viewType)] = heapIndex;
-
-	const D3D12_DEPTH_STENCIL_VIEW_DESC depthStencilViewDescription =
-	{
-		.Format = ToD3D12View(texture.GetFormat(), viewType),
-		.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-		.Texture2D =
-		{
-			.MipSlice = 0,
-		},
-	};
-	Device->CreateDepthStencilView
-	(
-		apiTexture.Resource,
-		&depthStencilViewDescription,
-		D3D12_CPU_DESCRIPTOR_HANDLE { DepthStencilViewHeap.GetCpu(heapIndex) }
-	);
 }
 
 ID3D12Device11* GpuDevice::GetDevice() const

@@ -59,5 +59,7 @@ class D3D12Sampler
 public:
 	D3D12Sampler(ID3D12Device11* device, const Sampler& sampler, ViewHeap* samplerViewHeap);
 
-	usize HeapIndex;
+	uint32 GetHeapIndex() const { CHECK(HeapIndex); return HeapIndex; }
+
+	uint32 HeapIndex;
 };
