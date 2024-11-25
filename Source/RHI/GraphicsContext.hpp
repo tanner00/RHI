@@ -33,7 +33,9 @@ public:
 	void SetGraphicsPipeline(GraphicsPipeline* graphicsPipeline);
 
 	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot) const;
+	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot, usize offset, usize size, usize stride) const;
 	void SetIndexBuffer(const Buffer& indexBuffer) const;
+	void SetIndexBuffer(const Buffer& indexBuffer, usize offset, usize size, usize stride) const;
 
 	void SetConstantBuffer(StringView name, const Buffer& constantBuffer, usize offsetIndex = 0) const;
 

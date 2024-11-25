@@ -140,8 +140,25 @@ void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot) co
 	CommandList->IASetVertexBuffers(static_cast<uint32>(slot), 1, &view);
 }
 
+void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot, usize offset, usize size, usize stride) const
+{
+	CHECK(vertexBuffer.GetType() == BufferType::VertexBuffer);
+
+	const BufferResource resource = Device->Buffers[vertexBuffer].GetBufferResource(Device->GetFrameIndex(), vertexBuffer.IsStream());
+
+	const D3D12_VERTEX_BUFFER_VIEW view =
+	{
+		.BufferLocation = resource->GetGPUVirtualAddress() + offset,
+		.SizeInBytes = static_cast<uint32>(size),
+		.StrideInBytes = static_cast<uint32>(stride),
+	};
+	CommandList->IASetVertexBuffers(static_cast<uint32>(slot), 1, &view);
+}
+
 void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer) const
 {
+	CHECK(indexBuffer.GetType() == BufferType::VertexBuffer);
+
 	const BufferResource resource = Device->Buffers[indexBuffer].GetBufferResource(Device->GetFrameIndex(), indexBuffer.IsStream());
 
 	CHECK(indexBuffer.GetStride() == 2 || indexBuffer.GetStride() == 4);
@@ -150,6 +167,22 @@ void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer) const
 		.BufferLocation = resource->GetGPUVirtualAddress(),
 		.SizeInBytes = static_cast<uint32>(indexBuffer.GetSize()),
 		.Format = indexBuffer.GetStride() == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
+	};
+	CommandList->IASetIndexBuffer(&view);
+}
+
+void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer, usize offset, usize size, usize stride) const
+{
+	CHECK(indexBuffer.GetType() == BufferType::VertexBuffer);
+
+	const BufferResource resource = Device->Buffers[indexBuffer].GetBufferResource(Device->GetFrameIndex(), indexBuffer.IsStream());
+
+	CHECK(stride == 2 || stride == 4);
+	const D3D12_INDEX_BUFFER_VIEW view =
+	{
+		.BufferLocation = resource->GetGPUVirtualAddress() + offset,
+		.SizeInBytes = static_cast<uint32>(size),
+		.Format = stride == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
 	};
 	CommandList->IASetIndexBuffer(&view);
 }
