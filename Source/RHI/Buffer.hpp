@@ -2,7 +2,8 @@
 
 #include "Common.hpp"
 
-#include "Luft/HashTable.hpp"
+#include "Luft/Array.hpp"
+#include "Luft/Hash.hpp"
 
 enum class BufferType
 {

@@ -2,7 +2,7 @@
 
 #include "Common.hpp"
 
-#include "Luft/HashTable.hpp"
+#include "Luft/Hash.hpp"
 
 enum class SamplerAddress
 {
