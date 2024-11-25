@@ -63,8 +63,6 @@ private:
 	ID3D12Fence1* FrameFence;
 	uint64 FrameFenceValues[FramesInFlight];
 
-	usize FrameIndex;
-
 	ID3D12CommandAllocator* UploadCommandAllocators[FramesInFlight];
 	ID3D12GraphicsCommandList10* UploadCommandList;
 

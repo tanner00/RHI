@@ -118,8 +118,6 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 	CHECK_RESULT(swapChain->QueryInterface(IID_PPV_ARGS(&SwapChain)));
 	SAFE_RELEASE(swapChain);
 
-	FrameIndex = SwapChain->GetCurrentBackBufferIndex();
-
 	CHECK_RESULT(dxgiFactory->MakeWindowAssociation(windowHandle, DXGI_MWA_NO_ALT_ENTER));
 	SAFE_RELEASE(dxgiFactory);
 
@@ -350,25 +348,22 @@ void GpuDevice::Submit(const GraphicsContext& context)
 
 void GpuDevice::Present()
 {
-	const uint64 frameFenceValue = FrameFenceValues[FrameIndex];
+	const uint64 frameFenceValue = FrameFenceValues[GetFrameIndex()];
 	CHECK_RESULT(SwapChain->Present(1, 0));
 
 	CHECK_RESULT(GraphicsQueue->Signal(FrameFence, frameFenceValue));
 
-	const uint32 newBackBufferIndex = SwapChain->GetCurrentBackBufferIndex();
-	if (FrameFence->GetCompletedValue() < FrameFenceValues[newBackBufferIndex])
+	if (FrameFence->GetCompletedValue() < FrameFenceValues[GetFrameIndex()])
 	{
-		CHECK_RESULT(FrameFence->SetEventOnCompletion(FrameFenceValues[newBackBufferIndex], nullptr));
+		CHECK_RESULT(FrameFence->SetEventOnCompletion(FrameFenceValues[GetFrameIndex()], nullptr));
 		WaitForSingleObjectEx(nullptr, INFINITE, false);
 	}
-	FrameFenceValues[newBackBufferIndex] = frameFenceValue + 1;
-
-	FrameIndex = newBackBufferIndex;
+	FrameFenceValues[GetFrameIndex()] = frameFenceValue + 1;
 }
 
 void GpuDevice::WaitForIdle()
 {
-	const uint64 fenceValue = FrameFenceValues[FrameIndex];
+	const uint64 fenceValue = FrameFenceValues[GetFrameIndex()];
 	CHECK_RESULT(GraphicsQueue->Signal(FrameFence, fenceValue));
 
 	if (FrameFence->GetCompletedValue() < fenceValue)
@@ -377,7 +372,7 @@ void GpuDevice::WaitForIdle()
 		WaitForSingleObjectEx(nullptr, INFINITE, false);
 	}
 
-	++FrameFenceValues[FrameIndex];
+	++FrameFenceValues[GetFrameIndex()];
 }
 
 void GpuDevice::ReleaseAllDeletes()
@@ -396,10 +391,9 @@ void GpuDevice::ResizeSwapChain(uint32 width, uint32 height)
 {
 	CHECK_RESULT(SwapChain->ResizeBuffers(FramesInFlight, width, height, DXGI_FORMAT_UNKNOWN, 0));
 
-	FrameIndex = SwapChain->GetCurrentBackBufferIndex();
 	for (uint64& frameFenceValue : FrameFenceValues)
 	{
-		frameFenceValue = FrameIndex;
+		frameFenceValue = GetFrameIndex();
 	}
 
 	RenderTargetViewHeap.Reset();
@@ -415,7 +409,7 @@ TextureResource GpuDevice::GetSwapChainResource(usize backBufferIndex) const
 
 usize GpuDevice::GetFrameIndex() const
 {
-	return FrameIndex;
+	return SwapChain->GetCurrentBackBufferIndex();
 }
 
 void GpuDevice::FlushUploads()
@@ -424,7 +418,7 @@ void GpuDevice::FlushUploads()
 	{
 		return;
 	}
-	CHECK_RESULT(UploadCommandList->Reset(UploadCommandAllocators[FrameIndex], nullptr));
+	CHECK_RESULT(UploadCommandList->Reset(UploadCommandAllocators[GetFrameIndex()], nullptr));
 
 	for (const auto& [source, destination] : PendingTextureUploads)
 	{
@@ -467,7 +461,7 @@ void GpuDevice::FlushUploads()
 			UploadCommandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
 		}
 
-		PendingDeletes[FrameIndex].Add(source);
+		PendingDeletes[GetFrameIndex()].Add(source);
 	}
 
 	for (const auto& [source, destination] : PendingBufferUploads)
@@ -475,7 +469,7 @@ void GpuDevice::FlushUploads()
 		const D3D12Buffer& destinationBuffer = Buffers[destination];
 		UploadCommandList->CopyResource(destinationBuffer.GetOnlyBufferResource(), source);
 
-		PendingDeletes[FrameIndex].Add(source);
+		PendingDeletes[GetFrameIndex()].Add(source);
 	}
 
 	CHECK_RESULT(UploadCommandList->Close());
@@ -489,18 +483,18 @@ void GpuDevice::FlushUploads()
 
 void GpuDevice::ReleaseFrameDeletes()
 {
-	for (IUnknown* resource : PendingDeletes[FrameIndex])
+	for (IUnknown* resource : PendingDeletes[GetFrameIndex()])
 	{
 		SAFE_RELEASE(resource);
 	}
-	PendingDeletes[FrameIndex].Clear();
+	PendingDeletes[GetFrameIndex()].Clear();
 }
 
 void GpuDevice::AddPendingDelete(IUnknown* pendingDelete)
 {
 	if (pendingDelete)
 	{
-		PendingDeletes[FrameIndex].Add(pendingDelete);
+		PendingDeletes[GetFrameIndex()].Add(pendingDelete);
 	}
 }
 
