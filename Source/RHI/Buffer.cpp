@@ -109,7 +109,8 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderR
 	pendingBufferUploads->Add({ uploadResource, buffer });
 
 	void* mapped = nullptr;
-	CHECK_RESULT(uploadResource->Map(0, nullptr, &mapped));
+	constexpr D3D12_RANGE readNothing = { 0, 0 };
+	CHECK_RESULT(uploadResource->Map(0, &readNothing, &mapped));
 	Platform::MemoryCopy(mapped, staticData, buffer.GetSize());
 	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	uploadResource->Unmap(0, writeEverything);
@@ -136,7 +137,8 @@ void D3D12Buffer::Write(ID3D12Device11* device, const Buffer& buffer, const void
 	}
 
 	void* mapped = nullptr;
-	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
+	constexpr D3D12_RANGE readNothing = { 0, 0 };
+	CHECK_RESULT(resource->Map(0, &readNothing, &mapped));
 	Platform::MemoryCopy(mapped, data, buffer.GetSize());
 	static constexpr const D3D12_RANGE* writeEverything = nullptr;
 	resource->Unmap(0, writeEverything);
