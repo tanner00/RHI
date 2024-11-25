@@ -218,6 +218,12 @@ static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array
 		D3D12_SIGNATURE_PARAMETER_DESC inputParameterDescription = {};
 		CHECK_RESULT(shaderReflection->GetInputParameterDesc(i, &inputParameterDescription));
 
+		const bool systemValue = inputParameterDescription.SystemValueType != D3D_NAME_UNDEFINED;
+		if (systemValue)
+		{
+			continue;
+		}
+
 		inputElements.Add
 		(
 			D3D12_INPUT_ELEMENT_DESC
