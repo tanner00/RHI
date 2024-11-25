@@ -39,6 +39,8 @@ public:
 
 	void SetConstantBuffer(StringView name, const Buffer& constantBuffer, usize offsetIndex = 0) const;
 
+	void SetRootConstants(StringView name, const void* data) const;
+
 	void Draw(usize vertexCount) const;
 	void DrawIndexed(usize indexCount) const;
 

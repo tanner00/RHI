@@ -7,14 +7,16 @@
 namespace Dxc
 {
 static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array<D3D12_INPUT_ELEMENT_DESC>& inputElements);
-static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection, HashTable<String, D3D12_ROOT_PARAMETER1>& rootParameters);
+static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
+								  HashTable<String, RootParameter>* rootParameters,
+								  HashTable<String, D3D12_ROOT_PARAMETER1>* apiRootParameters);
 }
 
 static constexpr usize BindingBucketCount = 4;
 
 D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device, const GraphicsPipeline& graphicsPipeline,
 											 const HashTable<Shader, D3D12Shader>& apiShaders, StringView name)
-	: Parameters(BindingBucketCount)
+	: RootParameters(BindingBucketCount, &GlobalAllocator::Get())
 {
 	CHECK(graphicsPipeline.HasShaderStage(ShaderStage::Vertex));
 	const bool usesPixelShader = graphicsPipeline.HasShaderStage(ShaderStage::Pixel);
@@ -30,24 +32,20 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device, const Graph
 	const D3D12Shader* vertex = &apiShaders[graphicsPipeline.GetShaderStage(ShaderStage::Vertex)];
 	const D3D12Shader* pixel = usesPixelShader ? &apiShaders[graphicsPipeline.GetShaderStage(ShaderStage::Pixel)] : nullptr;
 
-	Array<D3D12_INPUT_ELEMENT_DESC> inputElements;
+	Array<D3D12_INPUT_ELEMENT_DESC> inputElements(&GlobalAllocator::Get());
 	Dxc::ReflectInputElements(vertex->Reflection, inputElements);
 
-	HashTable<String, D3D12_ROOT_PARAMETER1> rootParameters(BindingBucketCount);
-	Dxc::ReflectRootParameters(vertex->Reflection, rootParameters);
+	HashTable<String, D3D12_ROOT_PARAMETER1> apiRootParameters(BindingBucketCount, &GlobalAllocator::Get());
+	Dxc::ReflectRootParameters(vertex->Reflection, &RootParameters, &apiRootParameters);
 	if (usesPixelShader)
 	{
-		Dxc::ReflectRootParameters(pixel->Reflection, rootParameters);
+		Dxc::ReflectRootParameters(pixel->Reflection, &RootParameters, &apiRootParameters);
 	}
 
-	Array<D3D12_ROOT_PARAMETER1> rootParametersList(rootParameters.GetCount());
-	usize rootParameterIndex = 0;
-	for (auto& [resourceName, rootParameter] : rootParameters)
+	Array<D3D12_ROOT_PARAMETER1> rootParametersList(apiRootParameters.GetCount(), &GlobalAllocator::Get());
+	for (auto& [_, rootParameter] : apiRootParameters)
 	{
 		rootParametersList.Add(rootParameter);
-
-		Parameters.Add(Move(resourceName), rootParameterIndex);
-		++rootParameterIndex;
 	}
 
 	const D3D12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDescription =
@@ -241,7 +239,8 @@ static void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array
 }
 
 static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
-								  HashTable<String, D3D12_ROOT_PARAMETER1>& rootParameters)
+								  HashTable<String, RootParameter>* rootParameters,
+								  HashTable<String, D3D12_ROOT_PARAMETER1>* apiRootParameters)
 {
 	D3D12_SHADER_DESC shaderDescription = {};
 	CHECK_RESULT(shaderReflection->GetDesc(&shaderDescription));
@@ -260,21 +259,56 @@ static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 			resourceName.Append(resourceDescription.Name[j]);
 		}
 
-		rootParameters.Add
-		(
-			Move(resourceName),
-			D3D12_ROOT_PARAMETER1
-			{
-				.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV,
-				.Descriptor =
+		D3D12_SHADER_VARIABLE_DESC variableDescription = {};
+		ID3D12ShaderReflectionVariable* variable = shaderReflection->GetVariableByName(resourceDescription.Name);
+		CHECK_RESULT(variable->GetDesc(&variableDescription));
+
+		rootParameters->Add(resourceName, RootParameter
+		{
+			.Index = i,
+			.Size = variableDescription.Size,
+		});
+
+		static constexpr char rootConstantsName[] = "RootConstants";
+		const bool rootConstant = Platform::StringCompare(resourceDescription.Name, Platform::StringLength(resourceDescription.Name),
+														  rootConstantsName, sizeof(rootConstantsName));
+
+		if (rootConstant)
+		{
+			apiRootParameters->Add
+			(
+				Move(resourceName),
+				D3D12_ROOT_PARAMETER1
 				{
-					.ShaderRegister = resourceDescription.BindPoint,
-					.RegisterSpace = resourceDescription.Space,
-					.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
-				},
-				.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
-			}
-		);
+					.ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS,
+					.Constants =
+					{
+						.ShaderRegister = resourceDescription.BindPoint,
+						.RegisterSpace = resourceDescription.Space,
+						.Num32BitValues = static_cast<uint32>(variableDescription.Size / sizeof(uint32)),
+					},
+					.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+				}
+			);
+		}
+		else
+		{
+			apiRootParameters->Add
+			(
+				Move(resourceName),
+				D3D12_ROOT_PARAMETER1
+				{
+					.ParameterType = D3D12_ROOT_PARAMETER_TYPE_CBV,
+					.Descriptor =
+					{
+						.ShaderRegister = resourceDescription.BindPoint,
+						.RegisterSpace = resourceDescription.Space,
+						.Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
+					},
+					.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
+				}
+			);
+		}
 	}
 }
 

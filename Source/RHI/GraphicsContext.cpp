@@ -193,7 +193,7 @@ void GraphicsContext::SetConstantBuffer(StringView name, const Buffer& constantB
 	CHECK(constantBuffer.GetType() == BufferType::ConstantBuffer);
 
 	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[*CurrentGraphicsPipeline];
-	CHECK(currentPipeline.Parameters.Contains(name));
+	CHECK(currentPipeline.RootParameters.Contains(name));
 
 	CHECK(offsetIndex < constantBuffer.GetCount());
 
@@ -201,8 +201,26 @@ void GraphicsContext::SetConstantBuffer(StringView name, const Buffer& constantB
 	const usize gpuAddress = Device->Buffers[constantBuffer].GetBufferResource(Device->GetFrameIndex(), constantBuffer.IsStream())->GetGPUVirtualAddress() + offset;
 	CommandList->SetGraphicsRootConstantBufferView
 	(
-		static_cast<uint32>(currentPipeline.Parameters[name]),
+		static_cast<uint32>(currentPipeline.RootParameters[name].Index),
 		D3D12_GPU_VIRTUAL_ADDRESS { gpuAddress }
+	);
+}
+
+void GraphicsContext::SetRootConstants(StringView name, const void* data) const
+{
+	CHECK(CurrentGraphicsPipeline);
+
+	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[*CurrentGraphicsPipeline];
+	CHECK(currentPipeline.RootParameters.Contains(name));
+
+	const RootParameter& rootParameter = currentPipeline.RootParameters[name];
+
+	CommandList->SetGraphicsRoot32BitConstants
+	(
+		static_cast<uint32>(rootParameter.Index),
+		static_cast<uint32>(rootParameter.Size / sizeof(uint32)),
+		data,
+		0
 	);
 }
 
