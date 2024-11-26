@@ -31,7 +31,7 @@ static IDxcResult* CompileShader(ShaderStage stage, StringView filePath)
 
 	wchar_t pathBuffer[MAX_PATH];
 	VERIFY(filePath.GetLength() < sizeof(pathBuffer), "File path length limit exceeded!");
-	const errno_t error = mbstowcs_s(nullptr, pathBuffer, reinterpret_cast<const char*>(filePath.GetData()), filePath.GetLength());
+	const errno_t error = mbstowcs_s(nullptr, pathBuffer, filePath.GetData(), filePath.GetLength());
 	CHECK(error == 0);
 
 	uint32 codePage = DXC_CP_UTF8;
