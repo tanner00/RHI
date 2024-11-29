@@ -47,11 +47,7 @@ TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, 
 	TextureResource resource = nullptr;
 	CHECK_RESULT(device->CreateCommittedResource3(&heapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &textureDescription, ToD3D12(initialLayout),
 												  IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr, nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
-#if DEBUG
-	CHECK_RESULT(resource->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
-#else
-	(void)name;
-#endif
+	SetD3DName(resource, name);
 	return resource;
 }
 

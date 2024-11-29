@@ -15,7 +15,11 @@
 #define CHECK_RESULT(expression) do { (expression); } while (false)
 #endif
 
-#define D3DDebugObjectName WKPDID_D3DDebugObjectName
+#if DEBUG
+#define SetD3DName(resource, name) CHECK_RESULT((resource)->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<uint32>((name).GetLength()), (name).GetData()))
+#else
+#define SetD3DName(resource, name) (void)(name)
+#endif
 
 #define PAD(size) char TOKEN_PASTE(Pad, __LINE__) [(size)]
 

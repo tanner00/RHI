@@ -78,11 +78,7 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device, const Graph
 	CHECK(serializedRootSignature);
 	CHECK_RESULT(device->CreateRootSignature(0, serializedRootSignature->GetBufferPointer(), serializedRootSignature->GetBufferSize(),
 											 IID_PPV_ARGS(&RootSignature)));
-#if DEBUG
-	CHECK_RESULT(RootSignature->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
-#else
-	(void)name;
-#endif
+	SetD3DName(RootSignature, name);
 
 	const D3D12_RENDER_TARGET_BLEND_DESC defaultBlendDescription =
 	{
@@ -177,11 +173,7 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device, const Graph
 		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE,
 	};
 	CHECK_RESULT(device->CreateGraphicsPipelineState(&graphicsPipelineStateDescription, IID_PPV_ARGS(&PipelineState)));
-#if DEBUG
-	CHECK_RESULT(PipelineState->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
-#else
-	(void)name;
-#endif
+	SetD3DName(PipelineState, name);
 }
 
 namespace Dxc

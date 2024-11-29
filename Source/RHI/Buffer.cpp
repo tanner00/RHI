@@ -33,11 +33,7 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 	BufferResource resource = nullptr;
 	CHECK_RESULT(device->CreateCommittedResource3(&heapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &bufferDescription,
 												  ToD3D12(BarrierLayout::Undefined), nullptr, nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
-#if DEBUG
-	CHECK_RESULT(resource->SetPrivateData(D3DDebugObjectName, static_cast<uint32>(name.GetLength()), name.GetData()));
-#else
-	(void)name;
-#endif
+	SetD3DName(resource, name);
 	return resource;
 }
 
