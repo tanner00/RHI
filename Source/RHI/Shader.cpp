@@ -80,6 +80,9 @@ static IDxcResult* CompileShader(ShaderStage stage, StringView filePath)
 	IDxcCompilerArgs* compileArguments = nullptr;
 	CHECK_RESULT(Utils->BuildArguments(pathBuffer, entryPoint, profile, arguments, ARRAY_COUNT(arguments), defines, 0, &compileArguments));
 
+	IDxcIncludeHandler* includeHandler = nullptr;
+	CHECK_RESULT(Utils->CreateDefaultIncludeHandler(&includeHandler));
+
 	const DxcBuffer buffer =
 	{
 		.Ptr = static_cast<uint8*>(sourceBlob->GetBufferPointer()),
@@ -87,9 +90,10 @@ static IDxcResult* CompileShader(ShaderStage stage, StringView filePath)
 		.Encoding = DXC_CP_UTF8,
 	};
 	IDxcResult* compileResult = nullptr;
-	dxcResult = Compiler->Compile(&buffer, compileArguments->GetArguments(), compileArguments->GetCount(), nullptr, IID_PPV_ARGS(&compileResult));
+	dxcResult = Compiler->Compile(&buffer, compileArguments->GetArguments(), compileArguments->GetCount(), includeHandler, IID_PPV_ARGS(&compileResult));
 	CHECK(SUCCEEDED(dxcResult) && compileResult);
 
+	SAFE_RELEASE(includeHandler);
 	SAFE_RELEASE(compileArguments);
 	SAFE_RELEASE(sourceBlob);
 
