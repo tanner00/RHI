@@ -1,5 +1,4 @@
 #include "Texture.hpp"
-#include "BarrierConversion.hpp"
 #include "Buffer.hpp"
 #include "PrivateCommon.hpp"
 #include "ViewHeap.hpp"

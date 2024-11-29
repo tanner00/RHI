@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Texture.hpp"
+
 #include "D3D12/d3d12.h"
 
 #define SAFE_RELEASE(p) if ((p)) { (p)->Release(); (p) = nullptr; }
@@ -50,3 +52,62 @@ inline constexpr D3D12_HEAP_PROPERTIES ReadbackHeapProperties =
 	.CreationNodeMask = 0,
 	.VisibleNodeMask = 0,
 };
+
+inline D3D12_BARRIER_SYNC ToD3D12(BarrierStage b)
+{
+	return static_cast<D3D12_BARRIER_SYNC>(b);
+}
+
+inline D3D12_BARRIER_ACCESS ToD3D12(BarrierAccess b)
+{
+	return static_cast<D3D12_BARRIER_ACCESS>(b);
+}
+
+inline D3D12_BARRIER_LAYOUT ToD3D12(BarrierLayout b)
+{
+	return static_cast<D3D12_BARRIER_LAYOUT>(b);
+};
+
+inline DXGI_FORMAT ToD3D12(TextureFormat format)
+{
+	switch (format)
+	{
+	case TextureFormat::None:
+		return DXGI_FORMAT_UNKNOWN;
+	case TextureFormat::Rgba8:
+		return DXGI_FORMAT_R8G8B8A8_UNORM;
+	case TextureFormat::Rgba8Srgb:
+		return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	case TextureFormat::Bc7:
+		return DXGI_FORMAT_BC7_UNORM;
+	case TextureFormat::Bc7Srgb:
+		return DXGI_FORMAT_BC7_UNORM_SRGB;
+	case TextureFormat::Depth24Stencil8:
+		return DXGI_FORMAT_D24_UNORM_S8_UINT;
+	case TextureFormat::Depth32:
+		return DXGI_FORMAT_D32_FLOAT;
+	}
+	CHECK(false);
+	return DXGI_FORMAT_UNKNOWN;
+}
+
+inline DXGI_FORMAT ToD3D12View(TextureFormat format, ViewType type)
+{
+	switch (format)
+	{
+	case TextureFormat::Depth24Stencil8:
+		if (type == ViewType::ShaderResource)
+		{
+			return DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		}
+		break;
+	case TextureFormat::Depth32:
+		if (type == ViewType::ShaderResource)
+		{
+			return DXGI_FORMAT_R32_TYPELESS;
+		}
+		break;
+	}
+	return ToD3D12(format);
+}
+

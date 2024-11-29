@@ -1,5 +1,4 @@
 #include "Buffer.hpp"
-#include "BarrierConversion.hpp"
 #include "ViewHeap.hpp"
 #include "PrivateCommon.hpp"
 

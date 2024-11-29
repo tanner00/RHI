@@ -1,5 +1,4 @@
 #include "GraphicsContext.hpp"
-#include "BarrierConversion.hpp"
 #include "GpuDevice.hpp"
 #include "PrivateCommon.hpp"
 
