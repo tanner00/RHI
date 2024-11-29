@@ -49,8 +49,9 @@ void ViewHeap::Destroy()
 
 uint32 ViewHeap::AllocateIndex()
 {
+	++Index;
 	CHECK(Index < Count);
-	return ++Index;
+	return Index;
 }
 
 void ViewHeap::Reset()
