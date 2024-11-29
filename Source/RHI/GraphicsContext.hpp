@@ -19,7 +19,7 @@ public:
 	~GraphicsContext();
 
 	void Begin() const;
-	void End() const;
+	void End();
 
 	void SetViewport(uint32 width, uint32 height) const;
 
@@ -48,15 +48,23 @@ public:
 	void BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const Buffer& buffer) const;
 	void TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, BarrierPair<BarrierLayout> layout, const Texture& texture) const;
 
+	double GetMostRecentGpuTime() const { return MostRecentGpuTime; }
+
 private:
-	ID3D12GraphicsCommandList10* GetCommandList() const;
+	ID3D12GraphicsCommandList10* GetCommandList() const { CHECK(CommandList); return CommandList; }
 
 	ID3D12CommandAllocator* CommandAllocators[FramesInFlight];
 	ID3D12GraphicsCommandList10* CommandList;
 
 	GraphicsPipeline* CurrentGraphicsPipeline;
-
 	GpuDevice* Device;
+
+#if !RELEASE
+	ID3D12QueryHeap* FrameTimeQueryHeap;
+	BufferResource FrameTimeQueryResource;
+#endif
+
+	double MostRecentGpuTime;
 
 	friend GpuDevice;
 };

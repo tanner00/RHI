@@ -155,6 +155,10 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 	RenderTargetViewHeap.Create(Device, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::RenderTarget, false);
 	DepthStencilViewHeap.Create(Device, D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::DepthStencil, false);
 	SamplerViewHeap.Create(Device, D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, ViewHeapType::Sampler, true);
+
+	uint64 timestampFrequency;
+	CHECK_RESULT(GraphicsQueue->GetTimestampFrequency(&timestampFrequency));
+	TimestampFrequency = static_cast<double>(timestampFrequency);
 }
 
 GpuDevice::~GpuDevice()
@@ -498,16 +502,4 @@ void GpuDevice::AddPendingDelete(IUnknown* pendingDelete)
 	{
 		PendingDeletes[GetFrameIndex()].Add(pendingDelete);
 	}
-}
-
-ID3D12Device11* GpuDevice::GetDevice() const
-{
-	CHECK(Device);
-	return Device;
-}
-
-IDXGISwapChain4* GpuDevice::GetSwapChain() const
-{
-	CHECK(SwapChain);
-	return SwapChain;
 }

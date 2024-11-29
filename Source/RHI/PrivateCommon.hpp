@@ -18,6 +18,35 @@
 
 inline constexpr DXGI_SAMPLE_DESC DefaultSampleDescription = { 1, 0 };
 
+inline constexpr const DXGI_FORMAT* NoCastableFormats = nullptr;
+
 inline constexpr D3D12_RANGE ReadNothing = { 0, 0 };
 inline constexpr D3D12_RANGE WriteNothing = { 0, 0 };
 inline constexpr const D3D12_RANGE* WriteEverything = nullptr;
+
+inline constexpr D3D12_HEAP_PROPERTIES UploadHeapProperties =
+{
+	.Type = D3D12_HEAP_TYPE_UPLOAD,
+	.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+	.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
+	.CreationNodeMask = 0,
+	.VisibleNodeMask = 0,
+};
+
+inline constexpr D3D12_HEAP_PROPERTIES DefaultHeapProperties =
+{
+	.Type = D3D12_HEAP_TYPE_DEFAULT,
+	.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+	.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
+	.CreationNodeMask = 0,
+	.VisibleNodeMask = 0,
+};
+
+inline constexpr D3D12_HEAP_PROPERTIES ReadbackHeapProperties =
+{
+	.Type = D3D12_HEAP_TYPE_READBACK,
+	.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+	.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
+	.CreationNodeMask = 0,
+	.VisibleNodeMask = 0,
+};

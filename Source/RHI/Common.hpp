@@ -22,6 +22,7 @@ struct ID3D12GraphicsCommandList10;
 struct ID3D12Fence1;
 struct ID3D12Heap1;
 struct ID3D12PipelineState;
+struct ID3D12QueryHeap;
 struct ID3D12Resource2;
 struct ID3D12RootSignature;
 struct ID3D12ShaderReflection;

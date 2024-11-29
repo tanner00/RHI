@@ -7,14 +7,6 @@
 
 BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, StringView name)
 {
-	const D3D12_HEAP_PROPERTIES heapProperties =
-	{
-		.Type = upload ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_DEFAULT,
-		.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-		.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
-		.CreationNodeMask = 0,
-		.VisibleNodeMask = 0,
-	};
 	const D3D12_RESOURCE_DESC1 bufferDescription =
 	{
 		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
@@ -30,10 +22,10 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 		.SamplerFeedbackMipRegion = {},
 	};
 
-	static constexpr const DXGI_FORMAT* noCastableFormats = nullptr;
 	BufferResource resource = nullptr;
-	CHECK_RESULT(device->CreateCommittedResource3(&heapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &bufferDescription,
-												  ToD3D12(BarrierLayout::Undefined), nullptr, nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
+	CHECK_RESULT(device->CreateCommittedResource3(upload ? &UploadHeapProperties : &DefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+												  &bufferDescription, ToD3D12(BarrierLayout::Undefined), nullptr, nullptr, 0, NoCastableFormats,
+												  IID_PPV_ARGS(&resource)));
 	SetD3DName(resource, name);
 	return resource;
 }

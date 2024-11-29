@@ -52,8 +52,9 @@ private:
 	void ReleaseFrameDeletes();
 	void AddPendingDelete(IUnknown* pendingDelete);
 
-	ID3D12Device11* GetDevice() const;
-	IDXGISwapChain4* GetSwapChain() const;
+	ID3D12Device11* GetDevice() const { CHECK(Device); return Device; }
+	IDXGISwapChain4* GetSwapChain() const { CHECK(SwapChain); return SwapChain; }
+	double GetTimestampFrequency() const { return TimestampFrequency; }
 
 	ID3D12Device11* Device;
 	IDXGISwapChain4* SwapChain;
@@ -81,6 +82,8 @@ private:
 	ViewHeap RenderTargetViewHeap;
 	ViewHeap DepthStencilViewHeap;
 	ViewHeap SamplerViewHeap;
+
+	double TimestampFrequency;
 
 	friend GraphicsContext;
 };

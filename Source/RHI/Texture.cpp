@@ -10,14 +10,6 @@ TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, 
 	const D3D12_RESOURCE_FLAGS depthStencilFlag = IsDepthFormat(texture.GetFormat()) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
 	CHECK((renderTargetFlag & depthStencilFlag) == 0);
 
-	constexpr D3D12_HEAP_PROPERTIES heapProperties =
-	{
-		.Type = D3D12_HEAP_TYPE_DEFAULT,
-		.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-		.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
-		.CreationNodeMask = 0,
-		.VisibleNodeMask = 0,
-	};
 	const D3D12_RESOURCE_DESC1 textureDescription =
 	{
 		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
@@ -42,10 +34,9 @@ TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, 
 		},
 	};
 
-	static constexpr const DXGI_FORMAT* noCastableFormats = nullptr;
 	TextureResource resource = nullptr;
-	CHECK_RESULT(device->CreateCommittedResource3(&heapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &textureDescription, ToD3D12(initialLayout),
-												  IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr, nullptr, 0, noCastableFormats, IID_PPV_ARGS(&resource)));
+	CHECK_RESULT(device->CreateCommittedResource3(&DefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &textureDescription, ToD3D12(initialLayout),
+												  IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr, nullptr, 0, NoCastableFormats, IID_PPV_ARGS(&resource)));
 	SetD3DName(resource, name);
 	return resource;
 }

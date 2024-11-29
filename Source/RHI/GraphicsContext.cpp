@@ -3,8 +3,11 @@
 #include "GpuDevice.hpp"
 #include "PrivateCommon.hpp"
 
+static constexpr usize FrameTimeQueryCount = 2;
+
 GraphicsContext::GraphicsContext(GpuDevice* device)
-	: CurrentGraphicsPipeline(nullptr)
+	: MostRecentGpuTime(0.0)
+	, CurrentGraphicsPipeline(nullptr)
 	, Device(device)
 {
 	static constexpr D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT;
@@ -13,10 +16,48 @@ GraphicsContext::GraphicsContext(GpuDevice* device)
 		CHECK_RESULT(Device->GetDevice()->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)));
 	}
 	CHECK_RESULT(Device->GetDevice()->CreateCommandList1(0, type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&CommandList)));
+
+#if !RELEASE
+	constexpr D3D12_QUERY_HEAP_DESC frameTimeQueryHeapDescription =
+	{
+		.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP,
+		.Count = FrameTimeQueryCount,
+		.NodeMask = 0,
+	};
+	CHECK_RESULT(Device->GetDevice()->CreateQueryHeap(&frameTimeQueryHeapDescription, IID_PPV_ARGS(&FrameTimeQueryHeap)));
+
+	const StringView frameTimeQueryHeapName = "Frame Time Query Heap"_view;
+	SetD3DName(FrameTimeQueryHeap, frameTimeQueryHeapName);
+
+	constexpr D3D12_RESOURCE_DESC1 frameTimeQueryResourceDescription =
+	{
+		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+		.Width = (FramesInFlight + 1) * FrameTimeQueryCount * sizeof(uint64),
+		.Height = 1,
+		.DepthOrArraySize = 1,
+		.MipLevels = 1,
+		.Format = DXGI_FORMAT_UNKNOWN,
+		.SampleDesc = DefaultSampleDescription,
+		.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+		.Flags = D3D12_RESOURCE_FLAG_NONE,
+		.SamplerFeedbackMipRegion = {},
+	};
+	CHECK_RESULT(Device->GetDevice()->CreateCommittedResource3(&ReadbackHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+															   &frameTimeQueryResourceDescription, ToD3D12(BarrierLayout::Undefined), nullptr, nullptr,
+															   0, NoCastableFormats, IID_PPV_ARGS(&FrameTimeQueryResource)));
+
+	const StringView frameTimeQueryResourceName = "Frame Time Query Resource"_view;
+	SetD3DName(FrameTimeQueryResource, frameTimeQueryResourceName);
+#endif
 }
 
 GraphicsContext::~GraphicsContext()
 {
+#if !RELEASE
+	Device->AddPendingDelete(FrameTimeQueryResource);
+	Device->AddPendingDelete(FrameTimeQueryHeap);
+#endif
 	Device->AddPendingDelete(CommandList);
 	CommandList = nullptr;
 
@@ -36,6 +77,10 @@ void GraphicsContext::Begin() const
 	CHECK_RESULT(CommandAllocators[backBufferIndex]->Reset());
 	CHECK_RESULT(CommandList->Reset(CommandAllocators[backBufferIndex], nullptr));
 
+#if !RELEASE
+	CommandList->EndQuery(FrameTimeQueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0);
+#endif
+
 	ID3D12DescriptorHeap* heaps[] =
 	{
 		Device->ConstantBufferShaderResourceUnorderedAccessViewHeap.GetHeap(),
@@ -46,9 +91,42 @@ void GraphicsContext::Begin() const
 	CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
-void GraphicsContext::End() const
+void GraphicsContext::End()
 {
+#if !RELEASE
+	CommandList->EndQuery(FrameTimeQueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 1);
+
+	static uint32 currentFrameResolveIndex = 0;
+	const uint64 currentFrameResolveOffset = currentFrameResolveIndex * FrameTimeQueryCount * sizeof(uint64);
+	CommandList->ResolveQueryData(FrameTimeQueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0, FrameTimeQueryCount,
+								  FrameTimeQueryResource, currentFrameResolveOffset);
+#endif
+
 	CHECK_RESULT(CommandList->Close());
+
+#if !RELEASE
+	const uint32 readbackFrameIndex = (currentFrameResolveIndex + 1) % (FramesInFlight + 1);
+	const usize readbackOffset = readbackFrameIndex * FrameTimeQueryCount * sizeof(uint64);
+	currentFrameResolveIndex = readbackFrameIndex;
+
+	const D3D12_RANGE dataRange =
+	{
+		.Begin = readbackOffset,
+		.End = readbackOffset + FrameTimeQueryCount * sizeof(uint64),
+	};
+
+	uint64* data;
+	CHECK_RESULT(FrameTimeQueryResource->Map(0, &dataRange, reinterpret_cast<void**>(&data)));
+
+	uint64 times[2] = {};
+	Platform::MemoryCopy(times, data, FrameTimeQueryCount * sizeof(uint64));
+
+	FrameTimeQueryResource->Unmap(0, &WriteNothing);
+
+	const uint64 start = times[0];
+	const uint64 end = times[1];
+	MostRecentGpuTime = (start < end) ? (static_cast<double>(end - start) / Device->GetTimestampFrequency()) : 0.0;
+#endif
 }
 
 void GraphicsContext::SetViewport(uint32 width, uint32 height) const
@@ -305,10 +383,3 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPai
 	};
 	CommandList->Barrier(1, &barrierGroup);
 }
-
-ID3D12GraphicsCommandList10* GraphicsContext::GetCommandList() const
-{
-	CHECK(CommandList);
-	return CommandList;
-}
-
