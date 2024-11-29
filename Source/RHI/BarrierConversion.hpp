@@ -1,6 +1,7 @@
 #pragma once
 
-#include "GraphicsContext.hpp"
+#include "Common.hpp"
+
 #include "D3D12/d3d12.h"
 
 inline D3D12_BARRIER_SYNC ToD3D12(BarrierStage b)

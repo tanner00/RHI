@@ -1,5 +1,6 @@
 #include "ViewHeap.hpp"
 #include "GpuDevice.hpp"
+#include "PrivateCommon.hpp"
 
 #include "Luft/Math.hpp"
 

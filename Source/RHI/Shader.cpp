@@ -1,4 +1,5 @@
 #include "Shader.hpp"
+#include "PrivateCommon.hpp"
 
 #include "D3D12/d3d12.h"
 #include "dxc/d3d12shader.h"

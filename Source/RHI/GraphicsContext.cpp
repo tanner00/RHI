@@ -1,9 +1,7 @@
 #include "GraphicsContext.hpp"
 #include "BarrierConversion.hpp"
 #include "GpuDevice.hpp"
-
-#include "D3D12/d3d12.h"
-#include <dxgi1_6.h>
+#include "PrivateCommon.hpp"
 
 GraphicsContext::GraphicsContext(GpuDevice* device)
 	: CurrentGraphicsPipeline(nullptr)
@@ -33,7 +31,7 @@ GraphicsContext::~GraphicsContext()
 
 void GraphicsContext::Begin() const
 {
-	const uint32 backBufferIndex = Device->GetSwapChain()->GetCurrentBackBufferIndex();
+	const usize backBufferIndex = Device->GetFrameIndex();
 
 	CHECK_RESULT(CommandAllocators[backBufferIndex]->Reset());
 	CHECK_RESULT(CommandList->Reset(CommandAllocators[backBufferIndex], nullptr));

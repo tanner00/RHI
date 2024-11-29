@@ -3,24 +3,6 @@
 #include "Luft/Base.hpp"
 #include "Luft/Error.hpp"
 
-#define UINT uint32
-#include <dxgicommon.h>
-#undef UINT
-
-#define SAFE_RELEASE(p) if ((p)) { (p)->Release(); (p) = nullptr; }
-
-#if DEBUG
-#define CHECK_RESULT(expression) do { const HRESULT result = (expression); CHECK(SUCCEEDED(result)); } while (false)
-#else
-#define CHECK_RESULT(expression) do { (expression); } while (false)
-#endif
-
-#if DEBUG
-#define SetD3DName(resource, name) CHECK_RESULT((resource)->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<uint32>((name).GetLength()), (name).GetData()))
-#else
-#define SetD3DName(resource, name) (void)(name)
-#endif
-
 #define PAD(size) char TOKEN_PASTE(Pad, __LINE__) [(size)]
 
 class GpuDevice;
@@ -111,11 +93,11 @@ enum class ViewType
 	Count,
 };
 
-using BufferResource = ID3D12Resource2*;
-using TextureResource = ID3D12Resource2*;
-
 using CpuView = usize;
 using GpuView = usize;
+
+using BufferResource = ID3D12Resource2*;
+using TextureResource = ID3D12Resource2*;
 
 enum class BarrierStage : uint32
 {
@@ -214,4 +196,3 @@ struct Float4
 };
 
 inline constexpr uint32 FramesInFlight = 2;
-inline constexpr DXGI_SAMPLE_DESC DefaultSampleDescription = { 1, 0 };

@@ -1,6 +1,7 @@
 #include "GpuDevice.hpp"
 #include "BarrierConversion.hpp"
 #include "Common.hpp"
+#include "PrivateCommon.hpp"
 
 #pragma comment(lib, "d3d12")
 #pragma comment(lib, "dxgi")
@@ -20,6 +21,7 @@ __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 }
 
 static constexpr DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
 static constexpr usize ResourceTableSize = 32;
 
 GpuDevice::GpuDevice(const Platform::Window* window)

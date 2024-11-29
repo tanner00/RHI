@@ -1,6 +1,7 @@
 #include "Buffer.hpp"
 #include "BarrierConversion.hpp"
 #include "ViewHeap.hpp"
+#include "PrivateCommon.hpp"
 
 #include "D3D12/d3d12.h"
 
@@ -105,11 +106,9 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderR
 	pendingBufferUploads->Add({ uploadResource, buffer });
 
 	void* mapped = nullptr;
-	constexpr D3D12_RANGE readNothing = { 0, 0 };
-	CHECK_RESULT(uploadResource->Map(0, &readNothing, &mapped));
+	CHECK_RESULT(uploadResource->Map(0, &ReadNothing, &mapped));
 	Platform::MemoryCopy(mapped, staticData, buffer.GetSize());
-	static constexpr const D3D12_RANGE* writeEverything = nullptr;
-	uploadResource->Unmap(0, writeEverything);
+	uploadResource->Unmap(0, &WriteNothing);
 }
 
 void D3D12Buffer::Write(ID3D12Device11* device, const Buffer& buffer, const void* data, usize frameIndex,
@@ -133,9 +132,7 @@ void D3D12Buffer::Write(ID3D12Device11* device, const Buffer& buffer, const void
 	}
 
 	void* mapped = nullptr;
-	constexpr D3D12_RANGE readNothing = { 0, 0 };
-	CHECK_RESULT(resource->Map(0, &readNothing, &mapped));
+	CHECK_RESULT(resource->Map(0, &ReadNothing, &mapped));
 	Platform::MemoryCopy(mapped, data, buffer.GetSize());
-	static constexpr const D3D12_RANGE* writeEverything = nullptr;
-	resource->Unmap(0, writeEverything);
+	resource->Unmap(0, WriteEverything);
 }

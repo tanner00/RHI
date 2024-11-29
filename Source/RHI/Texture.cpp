@@ -1,9 +1,8 @@
 #include "Texture.hpp"
 #include "BarrierConversion.hpp"
 #include "Buffer.hpp"
+#include "PrivateCommon.hpp"
 #include "ViewHeap.hpp"
-
-#include "D3D12/d3d12.h"
 
 TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name)
 {
@@ -79,7 +78,7 @@ UploadPair<Texture> WriteTexture(ID3D12Device11* device, const Texture& texture,
 	const BufferResource resource = AllocateBuffer(device, totalSize, true, "Upload [Texture]"_view);
 
 	void* mapped = nullptr;
-	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
+	CHECK_RESULT(resource->Map(0, &ReadNothing, &mapped));
 	for (usize row = 0; row < rowCount; ++row)
 	{
 		Platform::MemoryCopy
@@ -89,8 +88,7 @@ UploadPair<Texture> WriteTexture(ID3D12Device11* device, const Texture& texture,
 			rowSize
 		);
 	}
-	static constexpr const D3D12_RANGE* writeEverything = nullptr;
-	resource->Unmap(0, writeEverything);
+	resource->Unmap(0, WriteEverything);
 
 	return UploadPair<Texture>
 	{
@@ -136,7 +134,7 @@ UploadPair<Texture> WriteCubemapTexture(ID3D12Device11* device, const Texture& t
 	const BufferResource resource = AllocateBuffer(device, totalSize, true, "Upload [Cubemap Texture]"_view);
 
 	void* mapped = nullptr;
-	CHECK_RESULT(resource->Map(0, nullptr, &mapped));
+	CHECK_RESULT(resource->Map(0, &ReadNothing, &mapped));
 	for (usize subresourceIndex = 0; subresourceIndex < texture.GetCount(); ++subresourceIndex)
 	{
 		for (usize row = 0; row < rowCounts[subresourceIndex]; ++row)
@@ -149,8 +147,7 @@ UploadPair<Texture> WriteCubemapTexture(ID3D12Device11* device, const Texture& t
 			);
 		}
 	}
-	static constexpr const D3D12_RANGE* writeEverything = nullptr;
-	resource->Unmap(0, writeEverything);
+	resource->Unmap(0, WriteEverything);
 
 	return UploadPair<Texture>
 	{
