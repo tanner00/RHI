@@ -21,9 +21,11 @@ enum class SamplerFilter
 
 struct SamplerDescription
 {
-	SamplerAddress Address;
-	SamplerFilter Filter;
-	Float4 BorderFilterColor;
+	SamplerFilter MinificationFilter;
+	SamplerFilter MagnificationFilter;
+	SamplerAddress HorizontalAddress;
+	SamplerAddress VerticalAddress;
+	Float4 BorderColor;
 };
 
 class Sampler final : public RHI_HANDLE(Sampler)
@@ -31,9 +33,13 @@ class Sampler final : public RHI_HANDLE(Sampler)
 public:
 	RHI_HANDLE_BODY(Sampler);
 
-	SamplerAddress GetAddress() const { return Description.Address; }
-	SamplerFilter GetFilter() const { return Description.Filter; }
-	Float4 GetBorderFilterColor() const { return Description.BorderFilterColor; }
+	SamplerFilter GetMinificationFilter() const { return Description.MinificationFilter; }
+	SamplerFilter GetMagnificationFilter() const { return Description.MagnificationFilter; }
+
+	SamplerAddress GetHorizontalAddress() const { return Description.HorizontalAddress; }
+	SamplerAddress GetVerticalAddress() const { return Description.VerticalAddress; }
+
+	Float4 GetBorderColor() const { return Description.BorderColor; }
 
 private:
 	SamplerDescription Description;
