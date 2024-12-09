@@ -26,7 +26,7 @@ GraphicsContext::GraphicsContext(GpuDevice* device)
 	CHECK_RESULT(Device->GetDevice()->CreateQueryHeap(&frameTimeQueryHeapDescription, IID_PPV_ARGS(&FrameTimeQueryHeap)));
 
 	const StringView frameTimeQueryHeapName = "Frame Time Query Heap"_view;
-	SetD3DName(FrameTimeQueryHeap, frameTimeQueryHeapName);
+	SET_D3D_NAME(FrameTimeQueryHeap, frameTimeQueryHeapName);
 
 	constexpr D3D12_RESOURCE_DESC1 frameTimeQueryResourceDescription =
 	{
@@ -47,7 +47,7 @@ GraphicsContext::GraphicsContext(GpuDevice* device)
 															   0, NoCastableFormats, IID_PPV_ARGS(&FrameTimeQueryResource)));
 
 	const StringView frameTimeQueryResourceName = "Frame Time Query Resource"_view;
-	SetD3DName(FrameTimeQueryResource, frameTimeQueryResourceName);
+	SET_D3D_NAME(FrameTimeQueryResource, frameTimeQueryResourceName);
 #endif
 }
 

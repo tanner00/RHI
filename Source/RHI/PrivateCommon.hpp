@@ -13,9 +13,9 @@
 #endif
 
 #if DEBUG
-#define SetD3DName(resource, name) CHECK_RESULT((resource)->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<uint32>((name).GetLength()), (name).GetData()))
+#define SET_D3D_NAME(resource, name) CHECK_RESULT((resource)->SetPrivateData(WKPDID_D3DDebugObjectName, static_cast<uint32>((name).GetLength()), (name).GetData()))
 #else
-#define SetD3DName(resource, name) (void)(name)
+#define SET_D3D_NAME(resource, name) (void)(name)
 #endif
 
 inline constexpr DXGI_SAMPLE_DESC DefaultSampleDescription = { 1, 0 };

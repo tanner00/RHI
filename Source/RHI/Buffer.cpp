@@ -25,7 +25,7 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 	CHECK_RESULT(device->CreateCommittedResource3(upload ? &UploadHeapProperties : &DefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
 												  &bufferDescription, ToD3D12(BarrierLayout::Undefined), nullptr, nullptr, 0, NoCastableFormats,
 												  IID_PPV_ARGS(&resource)));
-	SetD3DName(resource, name);
+	SET_D3D_NAME(resource, name);
 	return resource;
 }
 

@@ -36,7 +36,7 @@ TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, 
 	TextureResource resource = nullptr;
 	CHECK_RESULT(device->CreateCommittedResource3(&DefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &textureDescription, ToD3D12(initialLayout),
 												  IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr, nullptr, 0, NoCastableFormats, IID_PPV_ARGS(&resource)));
-	SetD3DName(resource, name);
+	SET_D3D_NAME(resource, name);
 	return resource;
 }
 
