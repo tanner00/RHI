@@ -247,6 +247,16 @@ void GpuDevice::DestroyBuffer(Buffer* buffer)
 	{
 		AddPendingDelete(resource);
 	}
+	for (usize i = 0; i < PendingBufferUploads.GetLength(); ++i)
+	{
+		UploadPair<Buffer>& pendingBuffer = PendingBufferUploads[i];
+		if (pendingBuffer.Destination == *buffer)
+		{
+			AddPendingDelete(pendingBuffer.Source);
+			PendingBufferUploads.Remove(i);
+			break;
+		}
+	}
 
 	Buffers.Remove(*buffer);
 	buffer->Reset();
@@ -260,6 +270,16 @@ void GpuDevice::DestroyTexture(Texture* texture)
 	}
 
 	AddPendingDelete(Textures[*texture].Resource);
+	for (usize i = 0; i < PendingTextureUploads.GetLength(); ++i)
+	{
+		UploadPair<Texture>& pendingTexture = PendingTextureUploads[i];
+		if (pendingTexture.Destination == *texture)
+		{
+			AddPendingDelete(pendingTexture.Source);
+			PendingTextureUploads.Remove(i);
+			break;
+		}
+	}
 
 	Textures.Remove(*texture);
 	texture->Reset();
