@@ -5,9 +5,9 @@
 static constexpr usize FrameTimeQueryCount = 2;
 
 GraphicsContext::GraphicsContext(GpuDevice* device)
-	: MostRecentGpuTime(0.0)
-	, CurrentGraphicsPipeline(nullptr)
+	: CurrentGraphicsPipeline(nullptr)
 	, Device(device)
+	, MostRecentGpuTime(0.0)
 {
 	static constexpr D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	for (ID3D12CommandAllocator*& allocator : CommandAllocators)
@@ -17,7 +17,7 @@ GraphicsContext::GraphicsContext(GpuDevice* device)
 	CHECK_RESULT(Device->GetDevice()->CreateCommandList1(0, type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&CommandList)));
 
 #if !RELEASE
-	constexpr D3D12_QUERY_HEAP_DESC frameTimeQueryHeapDescription =
+	static constexpr D3D12_QUERY_HEAP_DESC frameTimeQueryHeapDescription =
 	{
 		.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP,
 		.Count = FrameTimeQueryCount,
@@ -28,7 +28,7 @@ GraphicsContext::GraphicsContext(GpuDevice* device)
 	const StringView frameTimeQueryHeapName = "Frame Time Query Heap"_view;
 	SET_D3D_NAME(FrameTimeQueryHeap, frameTimeQueryHeapName);
 
-	constexpr D3D12_RESOURCE_DESC1 frameTimeQueryResourceDescription =
+	static constexpr D3D12_RESOURCE_DESC1 frameTimeQueryResourceDescription =
 	{
 		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
 		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
@@ -117,7 +117,7 @@ void GraphicsContext::End()
 	uint64* data;
 	CHECK_RESULT(FrameTimeQueryResource->Map(0, &dataRange, reinterpret_cast<void**>(&data)));
 
-	uint64 times[2] = {};
+	uint64 times[FrameTimeQueryCount] = {};
 	Platform::MemoryCopy(times, data, FrameTimeQueryCount * sizeof(uint64));
 
 	FrameTimeQueryResource->Unmap(0, &WriteNothing);
