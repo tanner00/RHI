@@ -281,13 +281,13 @@ void GraphicsContext::SetConstantBuffer(StringView name, const Buffer& constantB
 	);
 }
 
-void GraphicsContext::SetRootConstants(StringView name, const void* data) const
+void GraphicsContext::SetRootConstants(const void* data) const
 {
 	CHECK(CurrentGraphicsPipeline);
-
 	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[*CurrentGraphicsPipeline];
-	CHECK(currentPipeline.RootParameters.Contains(name));
 
+	static const StringView name = "RootConstants"_view;
+	CHECK(currentPipeline.RootParameters.Contains(name));
 	const RootParameter& rootParameter = currentPipeline.RootParameters[name];
 
 	CommandList->SetGraphicsRoot32BitConstants
