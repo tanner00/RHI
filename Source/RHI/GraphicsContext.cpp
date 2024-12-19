@@ -202,17 +202,7 @@ void GraphicsContext::SetGraphicsPipeline(GraphicsPipeline* graphicsPipeline)
 
 void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot) const
 {
-	CHECK(vertexBuffer.GetType() == BufferType::VertexBuffer);
-
-	const BufferResource resource = Device->Buffers[vertexBuffer].GetBufferResource(Device->GetFrameIndex(), vertexBuffer.IsStream());
-
-	const D3D12_VERTEX_BUFFER_VIEW view =
-	{
-		.BufferLocation = resource->GetGPUVirtualAddress(),
-		.SizeInBytes = static_cast<uint32>(vertexBuffer.GetSize()),
-		.StrideInBytes = static_cast<uint32>(vertexBuffer.GetStride()),
-	};
-	CommandList->IASetVertexBuffers(static_cast<uint32>(slot), 1, &view);
+	SetVertexBuffer(vertexBuffer, slot, 0, vertexBuffer.GetSize(), vertexBuffer.GetStride());
 }
 
 void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot, usize offset, usize size, usize stride) const
@@ -232,18 +222,7 @@ void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot, us
 
 void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer) const
 {
-	CHECK(indexBuffer.GetType() == BufferType::VertexBuffer);
-
-	const BufferResource resource = Device->Buffers[indexBuffer].GetBufferResource(Device->GetFrameIndex(), indexBuffer.IsStream());
-
-	CHECK(indexBuffer.GetStride() == 2 || indexBuffer.GetStride() == 4);
-	const D3D12_INDEX_BUFFER_VIEW view =
-	{
-		.BufferLocation = resource->GetGPUVirtualAddress(),
-		.SizeInBytes = static_cast<uint32>(indexBuffer.GetSize()),
-		.Format = indexBuffer.GetStride() == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
-	};
-	CommandList->IASetIndexBuffer(&view);
+	SetIndexBuffer(indexBuffer, 0, indexBuffer.GetSize(), indexBuffer.GetStride());
 }
 
 void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer, usize offset, usize size, usize stride) const
