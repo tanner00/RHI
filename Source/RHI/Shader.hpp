@@ -8,7 +8,6 @@ enum class ShaderStage
 {
 	Vertex,
 	Pixel,
-	Count,
 };
 
 template<>

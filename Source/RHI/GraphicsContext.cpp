@@ -155,7 +155,6 @@ void GraphicsContext::SetRenderTarget(const Texture& renderTarget) const
 {
 	const uint32 heapIndex = Device->Textures[renderTarget].GetHeapIndex();
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->RenderTargetViewHeap.GetCpu(heapIndex) };
-
 	CommandList->OMSetRenderTargets(1, &cpu, true, nullptr);
 }
 
@@ -177,6 +176,7 @@ void GraphicsContext::SetDepthRenderTarget(const Texture& depthStencil) const
 
 void GraphicsContext::ClearRenderTarget(const Texture& renderTarget, Float4 color) const
 {
+	CHECK(CurrentGraphicsPipeline);
 	const uint32 heapIndex = Device->Textures[renderTarget].GetHeapIndex();
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->RenderTargetViewHeap.GetCpu(heapIndex) };
 	CommandList->ClearRenderTargetView(cpu, reinterpret_cast<const float*>(&color), 0, nullptr);
@@ -191,11 +191,11 @@ void GraphicsContext::ClearDepthStencil(const Texture& depthStencil) const
 	CommandList->ClearDepthStencilView(cpu, clearFlag, D3D12_MAX_DEPTH, 0, 0, nullptr);
 }
 
-void GraphicsContext::SetGraphicsPipeline(GraphicsPipeline* graphicsPipeline)
+void GraphicsContext::SetPipeline(GraphicsPipeline* graphicsPipeline)
 {
-	const D3D12GraphicsPipeline& apiGraphicsPipeline = Device->GraphicsPipelines[*graphicsPipeline];
 	CurrentGraphicsPipeline = graphicsPipeline;
 
+	const D3D12GraphicsPipeline& apiGraphicsPipeline = Device->GraphicsPipelines[*graphicsPipeline];
 	CommandList->SetPipelineState(apiGraphicsPipeline.PipelineState);
 	CommandList->SetGraphicsRootSignature(apiGraphicsPipeline.RootSignature);
 }
@@ -207,6 +207,7 @@ void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot) co
 
 void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot, usize offset, usize size, usize stride) const
 {
+	CHECK(CurrentGraphicsPipeline);
 	CHECK(vertexBuffer.GetType() == BufferType::VertexBuffer);
 
 	const BufferResource resource = Device->Buffers[vertexBuffer].GetBufferResource(Device->GetFrameIndex(), vertexBuffer.IsStream());
@@ -227,6 +228,7 @@ void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer) const
 
 void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer, usize offset, usize size, usize stride) const
 {
+	CHECK(CurrentGraphicsPipeline);
 	CHECK(indexBuffer.GetType() == BufferType::VertexBuffer);
 
 	const BufferResource resource = Device->Buffers[indexBuffer].GetBufferResource(Device->GetFrameIndex(), indexBuffer.IsStream());

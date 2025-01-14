@@ -5,9 +5,9 @@
 
 #define PAD(size) char TOKEN_PASTE(Pad, __LINE__) [(size)]
 
+class Buffer;
 class GpuDevice;
 class GraphicsContext;
-class Buffer;
 class GraphicsPipeline;
 class Sampler;
 class Shader;
@@ -74,7 +74,8 @@ DECLARE_RHI_HANDLE(GraphicsPipeline);
 		: RhiHandle { HandleValue }											\
 		, Description(description)											\
 	{}																		\
-	name() : RhiHandle { 0 } {}
+	name() : RhiHandle { 0 } {}												\
+	static name Invalid() { return {}; }
 
 template<typename T>
 struct UploadPair

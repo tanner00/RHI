@@ -30,7 +30,7 @@ public:
 	void ClearRenderTarget(const Texture& renderTarget, Float4 color) const;
 	void ClearDepthStencil(const Texture& depthStencil) const;
 
-	void SetGraphicsPipeline(GraphicsPipeline* graphicsPipeline);
+	void SetPipeline(GraphicsPipeline* graphicsPipeline);
 
 	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot) const;
 	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot, usize offset, usize size, usize stride) const;
