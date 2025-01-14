@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Texture.hpp"
+#include "Buffer.hpp"
 
 #include "D3D12/d3d12.h"
 
@@ -109,5 +110,45 @@ inline DXGI_FORMAT ToD3D12View(TextureFormat format, ViewType type)
 		break;
 	}
 	return ToD3D12(format);
+}
+
+inline D3D12_RESOURCE_DESC1 ToD3D12(const Buffer& buffer)
+{
+	return D3D12_RESOURCE_DESC1
+	{
+		.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER,
+		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+		.Width = buffer.GetSize(),
+		.Height = 1,
+		.DepthOrArraySize = 1,
+		.MipLevels = 1,
+		.Format = DXGI_FORMAT_UNKNOWN,
+		.SampleDesc = DefaultSampleDescription,
+		.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
+		.Flags = D3D12_RESOURCE_FLAG_NONE,
+		.SamplerFeedbackMipRegion = {},
+	};
+}
+
+inline D3D12_RESOURCE_DESC1 ToD3D12(const Texture& texture)
+{
+	const D3D12_RESOURCE_FLAGS renderTarget = texture.IsRenderTarget() ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
+	const D3D12_RESOURCE_FLAGS depthStencil = IsDepthFormat(texture.GetFormat()) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
+	CHECK((renderTarget & depthStencil) == 0);
+
+	return D3D12_RESOURCE_DESC1
+	{
+		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+		.Width = texture.GetWidth(),
+		.Height = texture.GetHeight(),
+		.DepthOrArraySize = static_cast<uint16>(texture.GetArrayCount()),
+		.MipLevels = static_cast<uint16>(texture.GetMipMapCount()),
+		.Format = ToD3D12(texture.GetFormat()),
+		.SampleDesc = DefaultSampleDescription,
+		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+		.Flags = renderTarget | depthStencil,
+		.SamplerFeedbackMipRegion = {},
+	};
 }
 

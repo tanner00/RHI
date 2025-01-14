@@ -342,7 +342,7 @@ void GpuDevice::Write(const Texture& texture, const void* data)
 	PendingTextureUploads.Add(WriteTexture(Device, texture, data));
 }
 
-void GpuDevice::WriteCubemap(const Texture& texture, const Array<uint8*>& faces)
+void GpuDevice::Write(const Texture& texture, const Array<uint8*>& faces)
 {
 	PendingTextureUploads.Add(WriteCubemapTexture(Device, texture, faces));
 }
@@ -445,37 +445,24 @@ void GpuDevice::FlushUploads()
 	}
 	CHECK_RESULT(UploadCommandList->Reset(UploadCommandAllocators[GetFrameIndex()], nullptr));
 
+	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(&GlobalAllocator::Get());
+
 	for (const auto& [source, destination] : PendingTextureUploads)
 	{
 		const D3D12Texture& destinationTexture = Textures[destination];
 
+		layouts.GrowToLengthUninitialized(destination.GetCount());
+
+		const D3D12_RESOURCE_DESC1 textureDescription = ToD3D12(destination);
+		Device->GetCopyableFootprints1(&textureDescription, 0, destination.GetCount(), 0, layouts.GetData(), nullptr, nullptr, nullptr);
+
 		for (usize subresourceIndex = 0; subresourceIndex < destination.GetCount(); ++subresourceIndex)
 		{
-			const D3D12_RESOURCE_DESC1 textureDescription =
-			{
-				.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-				.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-				.Width = destination.GetWidth(),
-				.Height = destination.GetHeight(),
-				.DepthOrArraySize = static_cast<uint16>(destination.GetCount()),
-				.MipLevels = 1,
-				.Format = ToD3D12(destination.GetFormat()),
-				.SampleDesc = DefaultSampleDescription,
-				.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-				.Flags = D3D12_RESOURCE_FLAG_NONE,
-				.SamplerFeedbackMipRegion = {},
-			};
-			static constexpr uint32 singleResource = 1;
-			D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-			uint32 rowCount;
-			Device->GetCopyableFootprints1(&textureDescription, static_cast<uint32>(subresourceIndex), singleResource, 0,
-										   &layout, &rowCount, nullptr, nullptr);
-
 			const D3D12_TEXTURE_COPY_LOCATION sourceLocation =
 			{
 				.pResource = source,
 				.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
-				.PlacedFootprint = layout,
+				.PlacedFootprint = layouts[subresourceIndex],
 			};
 			const D3D12_TEXTURE_COPY_LOCATION destinationLocation =
 			{

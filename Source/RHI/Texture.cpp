@@ -5,24 +5,6 @@
 
 TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name)
 {
-	const D3D12_RESOURCE_FLAGS renderTargetFlag = texture.IsRenderTarget() ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
-	const D3D12_RESOURCE_FLAGS depthStencilFlag = IsDepthFormat(texture.GetFormat()) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
-	CHECK((renderTargetFlag & depthStencilFlag) == 0);
-
-	const D3D12_RESOURCE_DESC1 textureDescription =
-	{
-		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		.Width = texture.GetWidth(),
-		.Height = texture.GetHeight(),
-		.DepthOrArraySize = static_cast<uint16>(texture.GetCount()),
-		.MipLevels = 1,
-		.Format = ToD3D12(texture.GetFormat()),
-		.SampleDesc = DefaultSampleDescription,
-		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-		.Flags = renderTargetFlag | depthStencilFlag,
-		.SamplerFeedbackMipRegion = {},
-	};
 	const D3D12_CLEAR_VALUE depthClear =
 	{
 		.Format = ToD3D12(texture.GetFormat()),
@@ -34,8 +16,10 @@ TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, 
 	};
 
 	TextureResource resource = nullptr;
-	CHECK_RESULT(device->CreateCommittedResource3(&DefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &textureDescription, ToD3D12(initialLayout),
-												  IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr, nullptr, 0, NoCastableFormats, IID_PPV_ARGS(&resource)));
+	const D3D12_RESOURCE_DESC1 textureDescription = ToD3D12(texture);
+	CHECK_RESULT(device->CreateCommittedResource3(&DefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &textureDescription,
+												  ToD3D12(initialLayout), IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr,
+												  nullptr, 0, NoCastableFormats, IID_PPV_ARGS(&resource)));
 	SET_D3D_NAME(resource, name);
 	return resource;
 }
@@ -43,40 +27,44 @@ TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, 
 UploadPair<Texture> WriteTexture(ID3D12Device11* device, const Texture& texture, const void* data)
 {
 	CHECK(texture.GetType() == TextureType::Rectangle);
+	CHECK(texture.GetArrayCount() == 1);
 
-	const D3D12_RESOURCE_DESC1 textureDescription =
-	{
-		.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-		.Width = texture.GetWidth(),
-		.Height = texture.GetHeight(),
-		.DepthOrArraySize = static_cast<uint16>(texture.GetCount()),
-		.MipLevels = 1,
-		.Format = ToD3D12(texture.GetFormat()),
-		.SampleDesc = DefaultSampleDescription,
-		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-		.Flags = D3D12_RESOURCE_FLAG_NONE,
-		.SamplerFeedbackMipRegion = {},
-	};
-	static constexpr uint32 singleResource = 1;
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
-	uint32 rowCount;
-	uint64 rowSize;
-	uint64 totalSize;
-	device->GetCopyableFootprints1(&textureDescription, 0, singleResource, 0, &layout, &rowCount, &rowSize, &totalSize);
+	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(&GlobalAllocator::Get());
+	Array<uint32> rowCounts(&GlobalAllocator::Get());
+	Array<uint64> rowSizes(&GlobalAllocator::Get());
+	uint64 totalSize = 0;
+
+	layouts.GrowToLengthUninitialized(texture.GetMipMapCount());
+	rowSizes.GrowToLengthUninitialized(texture.GetMipMapCount());
+	rowCounts.GrowToLengthUninitialized(texture.GetMipMapCount());
+
+	const D3D12_RESOURCE_DESC1 textureDescription = ToD3D12(texture);
+	device->GetCopyableFootprints1(&textureDescription, 0, texture.GetMipMapCount(), 0,
+								   layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
 
 	const BufferResource resource = AllocateBuffer(device, totalSize, true, "Upload [Texture]"_view);
 
+	usize dataOffset = 0;
+
 	void* mapped = nullptr;
 	CHECK_RESULT(resource->Map(0, &ReadNothing, &mapped));
-	for (usize row = 0; row < rowCount; ++row)
+	for (usize subresourceIndex = 0; subresourceIndex < texture.GetMipMapCount(); ++subresourceIndex)
 	{
-		Platform::MemoryCopy
-		(
-			static_cast<uint8*>(mapped) + row * layout.Footprint.RowPitch,
-			static_cast<const uint8*>(data) + row * rowSize,
-			rowSize
-		);
+		const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[subresourceIndex];
+		const uint64 rowSize = rowSizes[subresourceIndex];
+		const uint32 rowCount = rowCounts[subresourceIndex];
+
+		for (usize row = 0; row < rowCount; ++row)
+		{
+			Platform::MemoryCopy
+			(
+				static_cast<uint8*>(mapped) + layout.Offset + row * layout.Footprint.RowPitch,
+				static_cast<const uint8*>(data) + dataOffset + row * rowSize,
+				rowSize
+			);
+		}
+
+		dataOffset += rowSize * rowCount;
 	}
 	resource->Unmap(0, WriteEverything);
 
@@ -90,51 +78,49 @@ UploadPair<Texture> WriteTexture(ID3D12Device11* device, const Texture& texture,
 UploadPair<Texture> WriteCubemapTexture(ID3D12Device11* device, const Texture& texture, const Array<uint8*>& faces)
 {
 	CHECK(texture.GetType() == TextureType::Cubemap);
+	CHECK(texture.GetArrayCount() == 6);
 	CHECK(faces.GetLength() == 6);
 
-	usize totalSize = 0;
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layouts[6];
-	usize subresourceSizes[6];
-	uint32 rowCounts[6];
-	usize rowSizes[6];
+	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(&GlobalAllocator::Get());
+	Array<uint32> rowCounts(&GlobalAllocator::Get());
+	Array<uint64> rowSizes(&GlobalAllocator::Get());
+	uint64 totalSize = 0;
 
-	for (usize subresourceIndex = 0; subresourceIndex < texture.GetCount(); ++subresourceIndex)
-	{
-		const D3D12_RESOURCE_DESC1 textureDescription =
-		{
-			.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-			.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
-			.Width = texture.GetWidth(),
-			.Height = texture.GetHeight(),
-			.DepthOrArraySize = static_cast<uint16>(texture.GetCount()),
-			.MipLevels = 1,
-			.Format = ToD3D12(texture.GetFormat()),
-			.SampleDesc = DefaultSampleDescription,
-			.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-			.Flags = D3D12_RESOURCE_FLAG_NONE,
-			.SamplerFeedbackMipRegion = {},
-		};
-		static constexpr uint32 singleResource = 1;
-		device->GetCopyableFootprints1(&textureDescription, static_cast<uint32>(subresourceIndex), singleResource, 0,
-									   &layouts[subresourceIndex], &rowCounts[subresourceIndex], &rowSizes[subresourceIndex], &subresourceSizes[subresourceIndex]);
+	layouts.GrowToLengthUninitialized(texture.GetCount());
+	rowSizes.GrowToLengthUninitialized(texture.GetCount());
+	rowCounts.GrowToLengthUninitialized(texture.GetCount());
 
-		totalSize += subresourceSizes[subresourceIndex];
-	}
+	const D3D12_RESOURCE_DESC1 textureDescription = ToD3D12(texture);
+	device->GetCopyableFootprints1(&textureDescription, 0, texture.GetCount(), 0,
+								   layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
 
 	const BufferResource resource = AllocateBuffer(device, totalSize, true, "Upload [Cubemap Texture]"_view);
 
 	void* mapped = nullptr;
 	CHECK_RESULT(resource->Map(0, &ReadNothing, &mapped));
-	for (usize subresourceIndex = 0; subresourceIndex < texture.GetCount(); ++subresourceIndex)
+	for (usize faceIndex = 0; faceIndex < texture.GetArrayCount(); ++faceIndex)
 	{
-		for (usize row = 0; row < rowCounts[subresourceIndex]; ++row)
+		usize dataOffset = 0;
+
+		for (usize mipMapIndex = 0; mipMapIndex < texture.GetMipMapCount(); ++mipMapIndex)
 		{
-			Platform::MemoryCopy
-			(
-				static_cast<uint8*>(mapped) + subresourceIndex * subresourceSizes[subresourceIndex] + row * layouts[subresourceIndex].Footprint.RowPitch,
-				static_cast<const uint8*>(faces[subresourceIndex]) + row * rowSizes[subresourceIndex],
-				rowSizes[subresourceIndex]
-			);
+			const usize subresourceIndex = faceIndex * texture.GetMipMapCount() + mipMapIndex;
+
+			const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[subresourceIndex];
+			const uint64 rowSize = rowSizes[subresourceIndex];
+			const uint32 rowCount = rowCounts[subresourceIndex];
+
+			for (usize row = 0; row < rowCounts[subresourceIndex]; ++row)
+			{
+				Platform::MemoryCopy
+				(
+					static_cast<uint8*>(mapped) + layout.Offset + row * layout.Footprint.RowPitch,
+					static_cast<const uint8*>(faces[faceIndex]) + dataOffset + row * rowSize,
+					rowSize
+				);
+			}
+
+			dataOffset += rowSize * rowCount;
 		}
 	}
 	resource->Unmap(0, WriteEverything);
@@ -162,7 +148,7 @@ static uint32 CreateShaderResourceView(ID3D12Device11* device, ViewHeap* shaderR
 			.Texture2D =
 			{
 				.MostDetailedMip = 0,
-				.MipLevels = 1,
+				.MipLevels = texture.GetMipMapCount(),
 				.PlaneSlice = 0,
 				.ResourceMinLODClamp = 0,
 			},
@@ -177,7 +163,7 @@ static uint32 CreateShaderResourceView(ID3D12Device11* device, ViewHeap* shaderR
 			.TextureCube =
 			{
 				.MostDetailedMip = 0,
-				.MipLevels = 1,
+				.MipLevels = texture.GetMipMapCount(),
 				.ResourceMinLODClamp = 0,
 			},
 		};

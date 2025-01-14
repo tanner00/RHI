@@ -31,6 +31,7 @@ struct TextureDescription
 	uint32 Height;
 	TextureType Type;
 	TextureFormat Format;
+	uint32 MipMapCount;
 	bool RenderTarget;
 };
 
@@ -46,7 +47,9 @@ public:
 
 	bool IsRenderTarget() const { return Description.RenderTarget; }
 
-	usize GetCount() const { return Description.Type == TextureType::Cubemap ? 6 : 1; }
+	uint32 GetMipMapCount() const { return Description.MipMapCount; }
+	uint32 GetArrayCount() const { return Description.Type == TextureType::Cubemap ? 6 : 1; }
+	uint32 GetCount() const { return GetArrayCount() * GetMipMapCount(); }
 
 private:
 	TextureDescription Description;
