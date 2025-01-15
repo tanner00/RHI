@@ -75,13 +75,15 @@ inline DXGI_FORMAT ToD3D12(TextureFormat format)
 	{
 	case TextureFormat::None:
 		return DXGI_FORMAT_UNKNOWN;
-	case TextureFormat::Rgba8:
+	case TextureFormat::Rgba8Unorm:
 		return DXGI_FORMAT_R8G8B8A8_UNORM;
-	case TextureFormat::Rgba8Srgb:
+	case TextureFormat::Rgba8SrgbUnorm:
 		return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	case TextureFormat::Bc7:
+	case TextureFormat::Rgba32Float:
+		return DXGI_FORMAT_R32G32B32A32_FLOAT;
+	case TextureFormat::Bc7Unorm:
 		return DXGI_FORMAT_BC7_UNORM;
-	case TextureFormat::Bc7Srgb:
+	case TextureFormat::Bc7SrgbUnorm:
 		return DXGI_FORMAT_BC7_UNORM_SRGB;
 	case TextureFormat::Depth24Stencil8:
 		return DXGI_FORMAT_D24_UNORM_S8_UINT;

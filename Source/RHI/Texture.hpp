@@ -15,11 +15,13 @@ enum class TextureFormat
 {
 	None,
 
-	Rgba8,
-	Rgba8Srgb,
+	Rgba8Unorm,
+	Rgba8SrgbUnorm,
 
-	Bc7,
-	Bc7Srgb,
+	Rgba32Float,
+
+	Bc7Unorm,
+	Bc7SrgbUnorm,
 
 	Depth32,
 	Depth24Stencil8,
