@@ -339,12 +339,7 @@ void GpuDevice::Write(const Buffer& buffer, const void* data)
 
 void GpuDevice::Write(const Texture& texture, const void* data)
 {
-	PendingTextureUploads.Add(WriteTexture(Device, texture, data));
-}
-
-void GpuDevice::Write(const Texture& texture, const Array<uint8*>& faces)
-{
-	PendingTextureUploads.Add(WriteCubemapTexture(Device, texture, faces));
+	D3D12Texture::Write(Device, texture, data, &PendingTextureUploads);
 }
 
 uint32 GpuDevice::Get(const Buffer& buffer)

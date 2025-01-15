@@ -70,11 +70,6 @@ inline bool operator==(const Texture& a, const Texture& b)
 	return a.Get() == b.Get();
 }
 
-TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name);
-
-UploadPair<Texture> WriteTexture(ID3D12Device11* device, const Texture& texture, const void* data);
-UploadPair<Texture> WriteCubemapTexture(ID3D12Device11* device, const Texture& texture, const Array<uint8*>& faces);
-
 class D3D12Texture
 {
 public:
@@ -84,6 +79,8 @@ public:
 	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
 
 	uint32 GetHeapIndex() const { CHECK(HeapIndex); return HeapIndex; }
+
+	static void Write(ID3D12Device11* device, const Texture& texture, const void* data, Array<UploadPair<Texture>>* pendingTextureUploads);
 
 	TextureResource Resource;
 	uint32 HeapIndex;

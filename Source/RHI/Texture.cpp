@@ -3,135 +3,6 @@
 #include "PrivateCommon.hpp"
 #include "ViewHeap.hpp"
 
-TextureResource AllocateTexture(ID3D12Device11* device, const Texture& texture, BarrierLayout initialLayout, StringView name)
-{
-	const D3D12_CLEAR_VALUE depthClear =
-	{
-		.Format = ToD3D12(texture.GetFormat()),
-		.DepthStencil =
-		{
-			.Depth = D3D12_MAX_DEPTH,
-			.Stencil = 0,
-		},
-	};
-
-	TextureResource resource = nullptr;
-	const D3D12_RESOURCE_DESC1 textureDescription = ToD3D12(texture);
-	CHECK_RESULT(device->CreateCommittedResource3(&DefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &textureDescription,
-												  ToD3D12(initialLayout), IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr,
-												  nullptr, 0, NoCastableFormats, IID_PPV_ARGS(&resource)));
-	SET_D3D_NAME(resource, name);
-	return resource;
-}
-
-UploadPair<Texture> WriteTexture(ID3D12Device11* device, const Texture& texture, const void* data)
-{
-	CHECK(texture.GetType() == TextureType::Rectangle);
-	CHECK(texture.GetArrayCount() == 1);
-
-	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(&GlobalAllocator::Get());
-	Array<uint32> rowCounts(&GlobalAllocator::Get());
-	Array<uint64> rowSizes(&GlobalAllocator::Get());
-	uint64 totalSize = 0;
-
-	layouts.GrowToLengthUninitialized(texture.GetMipMapCount());
-	rowSizes.GrowToLengthUninitialized(texture.GetMipMapCount());
-	rowCounts.GrowToLengthUninitialized(texture.GetMipMapCount());
-
-	const D3D12_RESOURCE_DESC1 textureDescription = ToD3D12(texture);
-	device->GetCopyableFootprints1(&textureDescription, 0, texture.GetMipMapCount(), 0,
-								   layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
-
-	const BufferResource resource = AllocateBuffer(device, totalSize, true, "Upload [Texture]"_view);
-
-	usize dataOffset = 0;
-
-	void* mapped = nullptr;
-	CHECK_RESULT(resource->Map(0, &ReadNothing, &mapped));
-	for (usize subresourceIndex = 0; subresourceIndex < texture.GetMipMapCount(); ++subresourceIndex)
-	{
-		const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[subresourceIndex];
-		const uint64 rowSize = rowSizes[subresourceIndex];
-		const uint32 rowCount = rowCounts[subresourceIndex];
-
-		for (usize row = 0; row < rowCount; ++row)
-		{
-			Platform::MemoryCopy
-			(
-				static_cast<uint8*>(mapped) + layout.Offset + row * layout.Footprint.RowPitch,
-				static_cast<const uint8*>(data) + dataOffset + row * rowSize,
-				rowSize
-			);
-		}
-
-		dataOffset += rowSize * rowCount;
-	}
-	resource->Unmap(0, WriteEverything);
-
-	return UploadPair<Texture>
-	{
-		.Source = resource,
-		.Destination = texture,
-	};
-}
-
-UploadPair<Texture> WriteCubemapTexture(ID3D12Device11* device, const Texture& texture, const Array<uint8*>& faces)
-{
-	CHECK(texture.GetType() == TextureType::Cubemap);
-	CHECK(texture.GetArrayCount() == 6);
-	CHECK(faces.GetLength() == 6);
-
-	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(&GlobalAllocator::Get());
-	Array<uint32> rowCounts(&GlobalAllocator::Get());
-	Array<uint64> rowSizes(&GlobalAllocator::Get());
-	uint64 totalSize = 0;
-
-	layouts.GrowToLengthUninitialized(texture.GetCount());
-	rowSizes.GrowToLengthUninitialized(texture.GetCount());
-	rowCounts.GrowToLengthUninitialized(texture.GetCount());
-
-	const D3D12_RESOURCE_DESC1 textureDescription = ToD3D12(texture);
-	device->GetCopyableFootprints1(&textureDescription, 0, texture.GetCount(), 0,
-								   layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
-
-	const BufferResource resource = AllocateBuffer(device, totalSize, true, "Upload [Cubemap Texture]"_view);
-
-	void* mapped = nullptr;
-	CHECK_RESULT(resource->Map(0, &ReadNothing, &mapped));
-	for (usize faceIndex = 0; faceIndex < texture.GetArrayCount(); ++faceIndex)
-	{
-		usize dataOffset = 0;
-
-		for (usize mipMapIndex = 0; mipMapIndex < texture.GetMipMapCount(); ++mipMapIndex)
-		{
-			const usize subresourceIndex = faceIndex * texture.GetMipMapCount() + mipMapIndex;
-
-			const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[subresourceIndex];
-			const uint64 rowSize = rowSizes[subresourceIndex];
-			const uint32 rowCount = rowCounts[subresourceIndex];
-
-			for (usize row = 0; row < rowCounts[subresourceIndex]; ++row)
-			{
-				Platform::MemoryCopy
-				(
-					static_cast<uint8*>(mapped) + layout.Offset + row * layout.Footprint.RowPitch,
-					static_cast<const uint8*>(faces[faceIndex]) + dataOffset + row * rowSize,
-					rowSize
-				);
-			}
-
-			dataOffset += rowSize * rowCount;
-		}
-	}
-	resource->Unmap(0, WriteEverything);
-
-	return UploadPair<Texture>
-	{
-		.Source = resource,
-		.Destination = texture,
-	};
-}
-
 static uint32 CreateShaderResourceView(ID3D12Device11* device, ViewHeap* shaderResourceViewHeap, TextureResource resource, const Texture& texture)
 {
 	const uint32 heapIndex = shaderResourceViewHeap->AllocateIndex();
@@ -229,8 +100,30 @@ static uint32 CreateDepthStencilView(ID3D12Device11* device, ViewHeap* depthSten
 
 D3D12Texture::D3D12Texture(ID3D12Device11* device, ViewHeap* shaderResourceViewHeap, ViewHeap* renderTargetViewHeap, ViewHeap* depthStencilViewHeap,
 						   const Texture& texture, BarrierLayout initialLayout, TextureResource existingResource, StringView name)
-	: Resource(existingResource ? existingResource : AllocateTexture(device, texture, initialLayout, name))
 {
+	if (existingResource)
+	{
+		Resource = existingResource;
+	}
+	else
+	{
+		const D3D12_CLEAR_VALUE depthClear =
+		{
+			.Format = ToD3D12(texture.GetFormat()),
+			.DepthStencil =
+			{
+				.Depth = D3D12_MAX_DEPTH,
+				.Stencil = 0,
+			},
+		};
+
+		const D3D12_RESOURCE_DESC1 textureDescription = ToD3D12(texture);
+		CHECK_RESULT(device->CreateCommittedResource3(&DefaultHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED, &textureDescription,
+													  ToD3D12(initialLayout), IsDepthFormat(texture.GetFormat()) ? &depthClear : nullptr,
+													  nullptr, 0, NoCastableFormats, IID_PPV_ARGS(&Resource)));
+		SET_D3D_NAME(Resource, name);
+	}
+
 	if (IsDepthFormat(texture.GetFormat()))
 	{
 		HeapIndex = CreateDepthStencilView(device, depthStencilViewHeap, Resource, texture);
@@ -243,4 +136,57 @@ D3D12Texture::D3D12Texture(ID3D12Device11* device, ViewHeap* shaderResourceViewH
 	{
 		HeapIndex = CreateShaderResourceView(device, shaderResourceViewHeap, Resource, texture);
 	}
+}
+
+void D3D12Texture::Write(ID3D12Device11* device, const Texture& texture, const void* data, Array<UploadPair<Texture>>* pendingTextureUploads)
+{
+	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(&GlobalAllocator::Get());
+	Array<uint32> rowCounts(&GlobalAllocator::Get());
+	Array<uint64> rowSizes(&GlobalAllocator::Get());
+	uint64 totalSize = 0;
+
+	layouts.GrowToLengthUninitialized(texture.GetCount());
+	rowSizes.GrowToLengthUninitialized(texture.GetCount());
+	rowCounts.GrowToLengthUninitialized(texture.GetCount());
+
+	const D3D12_RESOURCE_DESC1 textureDescription = ToD3D12(texture);
+	device->GetCopyableFootprints1(&textureDescription, 0, texture.GetCount(), 0,
+								   layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
+
+	const BufferResource resource = AllocateBuffer(device, totalSize, true, "Upload [Texture]"_view);
+
+	usize dataOffset = 0;
+
+	void* mapped = nullptr;
+	CHECK_RESULT(resource->Map(0, &ReadNothing, &mapped));
+	for (usize faceIndex = 0; faceIndex < texture.GetArrayCount(); ++faceIndex)
+	{
+		for (usize mipMapIndex = 0; mipMapIndex < texture.GetMipMapCount(); ++mipMapIndex)
+		{
+			const usize subresourceIndex = faceIndex * texture.GetMipMapCount() + mipMapIndex;
+
+			const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& layout = layouts[subresourceIndex];
+			const uint64 rowSize = rowSizes[subresourceIndex];
+			const uint32 rowCount = rowCounts[subresourceIndex];
+
+			for (usize row = 0; row < rowCounts[subresourceIndex]; ++row)
+			{
+				Platform::MemoryCopy
+				(
+					static_cast<uint8*>(mapped) + layout.Offset + row * layout.Footprint.RowPitch,
+					static_cast<const uint8*>(data) + dataOffset + row * rowSize,
+					rowSize
+				);
+			}
+
+			dataOffset += rowSize * rowCount;
+		}
+	}
+	resource->Unmap(0, WriteEverything);
+
+	pendingTextureUploads->Add(UploadPair<Texture>
+	{
+		.Source = resource,
+		.Destination = texture,
+	});
 }

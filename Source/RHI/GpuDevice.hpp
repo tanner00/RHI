@@ -30,7 +30,6 @@ public:
 
 	void Write(const Buffer& buffer, const void* data);
 	void Write(const Texture& texture, const void* data);
-	void Write(const Texture& texture, const Array<uint8*>& faces);
 
 	uint32 Get(const Buffer& buffer);
 	uint32 Get(const Texture& texture);
