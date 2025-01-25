@@ -28,10 +28,20 @@ struct SamplerDescription
 	Float4 BorderColor;
 };
 
-class Sampler final : public RHI_HANDLE(Sampler)
+class Sampler final : public RhiHandle<Sampler>
 {
 public:
-	RHI_HANDLE_BODY(Sampler);
+	Sampler()
+		: RhiHandle(0)
+		, Description {}
+	{
+	}
+
+	Sampler(usize handleValue, SamplerDescription&& Description)
+		: RhiHandle(handleValue)
+		, Description(Move(Description))
+	{
+	}
 
 	SamplerFilter GetMinificationFilter() const { return Description.MinificationFilter; }
 	SamplerFilter GetMagnificationFilter() const { return Description.MagnificationFilter; }

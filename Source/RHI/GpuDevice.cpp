@@ -30,7 +30,7 @@ GpuDevice::GpuDevice(const Platform::Window* window)
 	, Textures(ResourceTableSize, &GlobalAllocator::Get())
 	, Samplers(ResourceTableSize, &GlobalAllocator::Get())
 	, Shaders(ResourceTableSize, &GlobalAllocator::Get())
-	, GraphicsPipelines(ResourceTableSize, &GlobalAllocator::Get())
+	, Pipelines(ResourceTableSize, &GlobalAllocator::Get())
 {
 	Dxc::Init();
 
@@ -189,23 +189,23 @@ GpuDevice::~GpuDevice()
 #endif
 }
 
-Buffer GpuDevice::CreateBuffer(StringView name, const BufferDescription& description)
+Buffer GpuDevice::CreateBuffer(StringView name, BufferDescription&& description)
 {
-	const Buffer buffer = { HandleIndex++, description };
+	const Buffer buffer = { HandleIndex++, Move(description) };
 	Buffers.Add(buffer, D3D12Buffer(Device, &ConstantBufferShaderResourceUnorderedAccessViewHeap, buffer, name));
 	return buffer;
 }
 
-Buffer GpuDevice::CreateBuffer(StringView name, const void* staticData, const BufferDescription& description)
+Buffer GpuDevice::CreateBuffer(StringView name, const void* staticData, BufferDescription&& description)
 {
-	const Buffer buffer = { HandleIndex++, description };
+	const Buffer buffer = { HandleIndex++, Move(description) };
 	Buffers.Add(buffer, D3D12Buffer(Device, &ConstantBufferShaderResourceUnorderedAccessViewHeap, buffer, staticData, &PendingBufferUploads, name));
 	return buffer;
 }
 
-Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, const TextureDescription& description, TextureResource existingResource)
+Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, TextureDescription&& description, TextureResource existingResource)
 {
-	const Texture texture = { HandleIndex++, description };
+	const Texture texture = { HandleIndex++, Move(description) };
 	Textures.Add(texture, D3D12Texture
 	(
 		Device,
@@ -215,24 +215,24 @@ Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, c
 	return texture;
 }
 
-Sampler GpuDevice::CreateSampler(const SamplerDescription& description)
+Sampler GpuDevice::CreateSampler(SamplerDescription&& description)
 {
-	const Sampler sampler = { HandleIndex++, description };
+	const Sampler sampler = { HandleIndex++, Move(description) };
 	Samplers.Add(sampler, D3D12Sampler(Device, sampler, &SamplerViewHeap));
 	return sampler;
 }
 
-Shader GpuDevice::CreateShader(const ShaderDescription& description)
+Shader GpuDevice::CreateShader(ShaderDescription&& description)
 {
-	const Shader shader = { HandleIndex++, description };
+	const Shader shader = { HandleIndex++, Move(description) };
 	Shaders.Add(shader, D3D12Shader(shader));
 	return shader;
 }
 
-GraphicsPipeline GpuDevice::CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description)
+GraphicsPipeline GpuDevice::CreatePipeline(StringView name, GraphicsPipelineDescription&& description)
 {
-	const GraphicsPipeline graphicsPipeline = { HandleIndex++, description };
-	GraphicsPipelines.Add(graphicsPipeline, D3D12GraphicsPipeline(Device, graphicsPipeline, Shaders, name));
+	const GraphicsPipeline graphicsPipeline = { HandleIndex++, Move(description) };
+	Pipelines.Add(graphicsPipeline, D3D12GraphicsPipeline(Device, graphicsPipeline, Shaders, name));
 	return graphicsPipeline;
 }
 
@@ -311,19 +311,19 @@ void GpuDevice::DestroyShader(Shader* shader)
 	shader->Reset();
 }
 
-void GpuDevice::DestroyGraphicsPipeline(GraphicsPipeline* graphicsPipeline)
+void GpuDevice::DestroyPipeline(Pipeline* pipeline)
 {
-	if (!graphicsPipeline->IsValid())
+	if (!pipeline->IsValid())
 	{
 		return;
 	}
 
-	const D3D12GraphicsPipeline& apiGraphicsPipeline = GraphicsPipelines[*graphicsPipeline];
-	AddPendingDelete(apiGraphicsPipeline.PipelineState);
-	AddPendingDelete(apiGraphicsPipeline.RootSignature);
+	const D3D12Pipeline& apiPipeline = Pipelines[*pipeline];
+	AddPendingDelete(apiPipeline.PipelineState);
+	AddPendingDelete(apiPipeline.RootSignature);
 
-	GraphicsPipelines.Remove(*graphicsPipeline);
-	graphicsPipeline->Reset();
+	Pipelines.Remove(*pipeline);
+	pipeline->Reset();
 }
 
 GraphicsContext GpuDevice::CreateGraphicsContext()

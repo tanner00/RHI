@@ -37,10 +37,20 @@ struct TextureDescription
 	bool RenderTarget;
 };
 
-class Texture final : public RHI_HANDLE(Texture)
+class Texture final : public RhiHandle<Texture>
 {
 public:
-	RHI_HANDLE_BODY(Texture);
+	Texture()
+		: RhiHandle(0)
+		, Description {}
+	{
+	}
+
+	Texture(usize handleValue, TextureDescription&& Description)
+		: RhiHandle(handleValue)
+		, Description(Move(Description))
+	{
+	}
 
 	uint32 GetWidth() const { return Description.Width; }
 	uint32 GetHeight() const { return Description.Height; }

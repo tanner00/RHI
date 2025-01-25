@@ -13,18 +13,18 @@ public:
 	explicit GpuDevice(const Platform::Window* window);
 	~GpuDevice();
 
-	Buffer CreateBuffer(StringView name, const BufferDescription& description);
-	Buffer CreateBuffer(StringView name, const void* staticData, const BufferDescription& description);
-	Texture CreateTexture(StringView name, BarrierLayout initialLayout, const TextureDescription& description, TextureResource existingResource = nullptr);
-	Sampler CreateSampler(const SamplerDescription& description);
-	Shader CreateShader(const ShaderDescription& description);
-	GraphicsPipeline CreateGraphicsPipeline(StringView name, const GraphicsPipelineDescription& description);
+	Buffer CreateBuffer(StringView name, BufferDescription&& description);
+	Buffer CreateBuffer(StringView name, const void* staticData, BufferDescription&& description);
+	Texture CreateTexture(StringView name, BarrierLayout initialLayout, TextureDescription&& description, TextureResource existingResource = nullptr);
+	Sampler CreateSampler(SamplerDescription&& description);
+	Shader CreateShader(ShaderDescription&& description);
+	GraphicsPipeline CreatePipeline(StringView name, GraphicsPipelineDescription&& description);
 
 	void DestroyBuffer(Buffer* buffer);
 	void DestroyTexture(Texture* texture);
 	void DestroySampler(Sampler* sampler);
 	void DestroyShader(Shader* shader);
-	void DestroyGraphicsPipeline(GraphicsPipeline* graphicsPipeline);
+	void DestroyPipeline(Pipeline* pipeline);
 
 	GraphicsContext CreateGraphicsContext();
 
@@ -71,7 +71,7 @@ private:
 	HashTable<Texture, D3D12Texture> Textures;
 	HashTable<Sampler, D3D12Sampler> Samplers;
 	HashTable<Shader, D3D12Shader> Shaders;
-	HashTable<GraphicsPipeline, D3D12GraphicsPipeline> GraphicsPipelines;
+	HashTable<Pipeline, D3D12Pipeline> Pipelines;
 
 	Array<Array<IUnknown*>> PendingDeletes;
 	Array<UploadPair<Buffer>> PendingBufferUploads;

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Common.hpp"
-#include "Shader.hpp"
+#include "Pipeline.hpp"
 #include "Texture.hpp"
 
 #include "Luft/HashTable.hpp"
@@ -29,10 +29,20 @@ struct GraphicsPipelineDescription
 	bool AlphaBlend;
 };
 
-class GraphicsPipeline final : public RHI_HANDLE(GraphicsPipeline)
+class GraphicsPipeline final : public Pipeline
 {
 public:
-	RHI_HANDLE_BODY(GraphicsPipeline);
+	GraphicsPipeline()
+		: Pipeline { RhiHandle(0) }
+		, Description {}
+	{
+	}
+
+	GraphicsPipeline(usize handleValue, GraphicsPipelineDescription&& Description)
+		: Pipeline { RhiHandle(handleValue) }
+		, Description(Move(Description))
+	{
+	}
 
 	usize GetStageCount() const { return Description.Stages.GetCount(); }
 	bool HasShaderStage(ShaderStage stage) const { return Description.Stages.Contains(stage); }
@@ -47,34 +57,11 @@ private:
 	GraphicsPipelineDescription Description;
 };
 
-template<>
-struct Hash<GraphicsPipeline>
-{
-	uint64 operator()(const GraphicsPipeline& graphicsPipeline) const
-	{
-		const usize handle = graphicsPipeline.Get();
-		return HashFnv1a(&handle, sizeof(handle));
-	}
-};
-
-inline bool operator==(const GraphicsPipeline& a, const GraphicsPipeline& b)
-{
-	return a.Get() == b.Get();
-}
-
-struct RootParameter
-{
-	usize Index;
-	usize Size;
-};
-
-class D3D12GraphicsPipeline
+class D3D12GraphicsPipeline final : public D3D12Pipeline
 {
 public:
-	D3D12GraphicsPipeline(ID3D12Device11* device, const GraphicsPipeline& graphicsPipeline,
-						  const HashTable<Shader, D3D12Shader>& apiShaders, StringView name);
-
-	HashTable<String, RootParameter> RootParameters;
-	ID3D12RootSignature* RootSignature;
-	ID3D12PipelineState* PipelineState;
+	D3D12GraphicsPipeline(ID3D12Device11* device,
+						  const GraphicsPipeline& graphicsPipeline,
+						  const HashTable<Shader, D3D12Shader>& apiShaders,
+						  StringView name);
 };

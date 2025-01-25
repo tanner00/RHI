@@ -27,10 +27,20 @@ struct BufferDescription
 	usize Stride;
 };
 
-class Buffer final : public RHI_HANDLE(Buffer)
+class Buffer final : public RhiHandle<Buffer>
 {
 public:
-	RHI_HANDLE_BODY(Buffer);
+	Buffer()
+		: RhiHandle(0)
+		, Description {}
+	{
+	}
+
+	Buffer(usize handleValue, BufferDescription&& Description)
+		: RhiHandle(handleValue)
+		, Description(Move(Description))
+	{
+	}
 
 	usize GetSize() const { return Description.Size; }
 	usize GetStride() const { return Description.Stride ? Description.Stride : Description.Size; }

@@ -9,6 +9,7 @@ class Buffer;
 class GpuDevice;
 class GraphicsContext;
 class GraphicsPipeline;
+class Pipeline;
 class Sampler;
 class Shader;
 class Texture;
@@ -30,13 +31,23 @@ struct IDXGISwapChain4;
 struct IDxcBlob;
 struct IUnknown;
 
-template<typename Tag>
+template<typename T>
 class RhiHandle
 {
 public:
+	RhiHandle()
+		: Value(0)
+	{
+	}
+
 	explicit RhiHandle(usize value)
 		: Value(value)
 	{
+	}
+
+	static T Invalid()
+	{
+		return T {};
 	}
 
 	bool IsValid() const
@@ -58,24 +69,6 @@ public:
 private:
 	usize Value;
 };
-
-#define DECLARE_RHI_HANDLE(name) struct name##Tag {};
-
-DECLARE_RHI_HANDLE(Buffer);
-DECLARE_RHI_HANDLE(Texture);
-DECLARE_RHI_HANDLE(Sampler);
-DECLARE_RHI_HANDLE(Shader);
-DECLARE_RHI_HANDLE(GraphicsPipeline);
-
-#define RHI_HANDLE(name) RhiHandle<name##Tag>
-
-#define RHI_HANDLE_BODY(name)												\
-	name(usize HandleValue, const name##Description& description)			\
-		: RhiHandle { HandleValue }											\
-		, Description(description)											\
-	{}																		\
-	name() : RhiHandle { 0 } {}												\
-	static name Invalid() { return {}; }
 
 template<typename T>
 struct UploadPair

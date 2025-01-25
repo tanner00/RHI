@@ -30,7 +30,7 @@ public:
 	void ClearRenderTarget(const Texture& renderTarget, Float4 color) const;
 	void ClearDepthStencil(const Texture& depthStencil) const;
 
-	void SetPipeline(GraphicsPipeline* graphicsPipeline);
+	void SetPipeline(Pipeline* pipeline);
 
 	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot) const;
 	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot, usize offset, usize size, usize stride) const;
@@ -56,7 +56,7 @@ private:
 	ID3D12CommandAllocator* CommandAllocators[FramesInFlight];
 	ID3D12GraphicsCommandList10* CommandList;
 
-	GraphicsPipeline* CurrentGraphicsPipeline;
+	Pipeline* CurrentPipeline;
 	GpuDevice* Device;
 
 #if !RELEASE

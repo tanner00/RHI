@@ -5,7 +5,7 @@
 static constexpr usize FrameTimeQueryCount = 2;
 
 GraphicsContext::GraphicsContext(GpuDevice* device)
-	: CurrentGraphicsPipeline(nullptr)
+	: CurrentPipeline(nullptr)
 	, Device(device)
 	, MostRecentGpuTime(0.0)
 {
@@ -66,7 +66,7 @@ GraphicsContext::~GraphicsContext()
 		commandAllocator = nullptr;
 	}
 
-	CurrentGraphicsPipeline = nullptr;
+	CurrentPipeline = nullptr;
 }
 
 void GraphicsContext::Begin() const
@@ -176,7 +176,7 @@ void GraphicsContext::SetDepthRenderTarget(const Texture& depthStencil) const
 
 void GraphicsContext::ClearRenderTarget(const Texture& renderTarget, Float4 color) const
 {
-	CHECK(CurrentGraphicsPipeline);
+	CHECK(CurrentPipeline);
 	const uint32 heapIndex = Device->Textures[renderTarget].GetHeapIndex();
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->RenderTargetViewHeap.GetCpu(heapIndex) };
 	CommandList->ClearRenderTargetView(cpu, reinterpret_cast<const float*>(&color), 0, nullptr);
@@ -191,13 +191,13 @@ void GraphicsContext::ClearDepthStencil(const Texture& depthStencil) const
 	CommandList->ClearDepthStencilView(cpu, clearFlag, D3D12_MAX_DEPTH, 0, 0, nullptr);
 }
 
-void GraphicsContext::SetPipeline(GraphicsPipeline* graphicsPipeline)
+void GraphicsContext::SetPipeline(Pipeline* pipeline)
 {
-	CurrentGraphicsPipeline = graphicsPipeline;
+	CurrentPipeline = pipeline;
 
-	const D3D12GraphicsPipeline& apiGraphicsPipeline = Device->GraphicsPipelines[*graphicsPipeline];
-	CommandList->SetPipelineState(apiGraphicsPipeline.PipelineState);
-	CommandList->SetGraphicsRootSignature(apiGraphicsPipeline.RootSignature);
+	const D3D12Pipeline& apiPipeline = Device->Pipelines[*pipeline];
+	CommandList->SetPipelineState(apiPipeline.PipelineState);
+	CommandList->SetGraphicsRootSignature(apiPipeline.RootSignature);
 }
 
 void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot) const
@@ -207,7 +207,7 @@ void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot) co
 
 void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot, usize offset, usize size, usize stride) const
 {
-	CHECK(CurrentGraphicsPipeline);
+	CHECK(CurrentPipeline);
 	CHECK(vertexBuffer.GetType() == BufferType::VertexBuffer);
 
 	const BufferResource resource = Device->Buffers[vertexBuffer].GetBufferResource(Device->GetFrameIndex(), vertexBuffer.IsStream());
@@ -228,7 +228,7 @@ void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer) const
 
 void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer, usize offset, usize size, usize stride) const
 {
-	CHECK(CurrentGraphicsPipeline);
+	CHECK(CurrentPipeline);
 	CHECK(indexBuffer.GetType() == BufferType::VertexBuffer);
 
 	const BufferResource resource = Device->Buffers[indexBuffer].GetBufferResource(Device->GetFrameIndex(), indexBuffer.IsStream());
@@ -245,10 +245,10 @@ void GraphicsContext::SetIndexBuffer(const Buffer& indexBuffer, usize offset, us
 
 void GraphicsContext::SetConstantBuffer(StringView name, const Buffer& constantBuffer, usize offsetIndex) const
 {
-	CHECK(CurrentGraphicsPipeline);
+	CHECK(CurrentPipeline);
 	CHECK(constantBuffer.GetType() == BufferType::ConstantBuffer);
 
-	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[*CurrentGraphicsPipeline];
+	const D3D12Pipeline& currentPipeline = Device->Pipelines[*CurrentPipeline];
 	CHECK(currentPipeline.RootParameters.Contains(name));
 
 	CHECK(offsetIndex < constantBuffer.GetCount());
@@ -264,8 +264,8 @@ void GraphicsContext::SetConstantBuffer(StringView name, const Buffer& constantB
 
 void GraphicsContext::SetRootConstants(const void* data) const
 {
-	CHECK(CurrentGraphicsPipeline);
-	const D3D12GraphicsPipeline& currentPipeline = Device->GraphicsPipelines[*CurrentGraphicsPipeline];
+	CHECK(CurrentPipeline);
+	const D3D12Pipeline& currentPipeline = Device->Pipelines[*CurrentPipeline];
 
 	static const StringView name = "RootConstants"_view;
 	CHECK(currentPipeline.RootParameters.Contains(name));
@@ -282,13 +282,13 @@ void GraphicsContext::SetRootConstants(const void* data) const
 
 void GraphicsContext::Draw(usize vertexCount) const
 {
-	CHECK(CurrentGraphicsPipeline);
+	CHECK(CurrentPipeline);
 	CommandList->DrawInstanced(static_cast<uint32>(vertexCount), 1, 0, 0);
 }
 
 void GraphicsContext::DrawIndexed(usize indexCount) const
 {
-	CHECK(CurrentGraphicsPipeline);
+	CHECK(CurrentPipeline);
 	CommandList->DrawIndexedInstanced(static_cast<uint32>(indexCount), 1, 0, 0, 0);
 }
 

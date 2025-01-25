@@ -13,11 +13,10 @@ static void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 								  HashTable<String, D3D12_ROOT_PARAMETER1>* apiRootParameters);
 }
 
-static constexpr usize BindingBucketCount = 4;
-
-D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device, const GraphicsPipeline& graphicsPipeline,
-											 const HashTable<Shader, D3D12Shader>& apiShaders, StringView name)
-	: RootParameters(BindingBucketCount, &GlobalAllocator::Get())
+D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device,
+											 const GraphicsPipeline& graphicsPipeline,
+											 const HashTable<Shader, D3D12Shader>& apiShaders,
+											 StringView name)
 {
 	CHECK(graphicsPipeline.HasShaderStage(ShaderStage::Vertex));
 	const bool usesPixelShader = graphicsPipeline.HasShaderStage(ShaderStage::Pixel);

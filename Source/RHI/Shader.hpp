@@ -25,10 +25,20 @@ struct ShaderDescription
 	StringView FilePath;
 };
 
-class Shader final : public RHI_HANDLE(Shader)
+class Shader final : public RhiHandle<Shader>
 {
 public:
-	RHI_HANDLE_BODY(Shader);
+	Shader()
+		: RhiHandle(0)
+		, Description {}
+	{
+	}
+
+	Shader(usize handleValue, ShaderDescription&& Description)
+		: RhiHandle(handleValue)
+		, Description(Move(Description))
+	{
+	}
 
 	ShaderStage GetStage() const { return Description.Stage; }
 	StringView GetFilePath() const { return Description.FilePath; }
