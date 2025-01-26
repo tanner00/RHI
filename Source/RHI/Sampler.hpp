@@ -55,20 +55,7 @@ private:
 	SamplerDescription Description;
 };
 
-template<>
-struct Hash<Sampler>
-{
-	uint64 operator()(const Sampler& sampler) const
-	{
-		const usize handle = sampler.Get();
-		return HashFnv1a(&handle, sizeof(handle));
-	}
-};
-
-inline bool operator==(const Sampler& a, const Sampler& b)
-{
-	return a.Get() == b.Get();
-}
+HASH_RHI_HANDLE(Sampler);
 
 class D3D12Sampler
 {

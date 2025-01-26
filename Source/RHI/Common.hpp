@@ -71,6 +71,21 @@ private:
 	usize Value;
 };
 
+#define HASH_RHI_HANDLE(name)										\
+	template<>														\
+	struct Hash<name>												\
+	{																\
+		uint64 operator()(const name& handle) const					\
+		{															\
+			const usize handleValue = handle.Get();					\
+			return HashFnv1a(&handleValue, sizeof(handleValue));	\
+		}															\
+	};																\
+	inline bool operator==(const name& a, const name& b)			\
+	{																\
+		return a.Get() == b.Get();									\
+	}
+
 template<typename T>
 struct UploadPair
 {

@@ -48,20 +48,7 @@ private:
 	ShaderDescription Description;
 };
 
-template<>
-struct Hash<Shader>
-{
-	uint64 operator()(const Shader& shader) const
-	{
-		const usize handle = shader.Get();
-		return HashFnv1a(&handle, sizeof(handle));
-	}
-};
-
-inline bool operator==(const Shader& a, const Shader& b)
-{
-	return a.Get() == b.Get();
-}
+HASH_RHI_HANDLE(Shader);
 
 class D3D12Shader
 {

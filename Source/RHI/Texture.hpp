@@ -69,20 +69,7 @@ private:
 	TextureDescription Description;
 };
 
-template<>
-struct Hash<Texture>
-{
-	uint64 operator()(const Texture& texture) const
-	{
-		const usize handle = texture.Get();
-		return HashFnv1a(&handle, sizeof(handle));
-	}
-};
-
-inline bool operator==(const Texture& a, const Texture& b)
-{
-	return a.Get() == b.Get();
-}
+HASH_RHI_HANDLE(Texture);
 
 class D3D12Texture
 {

@@ -16,20 +16,7 @@ public:
 	}
 };
 
-template<>
-struct Hash<Pipeline>
-{
-	uint64 operator()(const Pipeline& pipeline) const
-	{
-		const usize handle = pipeline.Get();
-		return HashFnv1a(&handle, sizeof(handle));
-	}
-};
-
-inline bool operator==(const Pipeline& a, const Pipeline& b)
-{
-	return a.Get() == b.Get();
-}
+HASH_RHI_HANDLE(Pipeline);
 
 enum class PipelineType
 {

@@ -56,20 +56,7 @@ private:
 	BufferDescription Description;
 };
 
-template<>
-struct Hash<Buffer>
-{
-	uint64 operator()(const Buffer& buffer) const
-	{
-		const usize handle = buffer.Get();
-		return HashFnv1a(&handle, sizeof(handle));
-	}
-};
-
-inline bool operator==(const Buffer& a, const Buffer& b)
-{
-	return a.Get() == b.Get();
-}
+HASH_RHI_HANDLE(Buffer);
 
 BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, StringView name);
 
