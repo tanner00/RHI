@@ -33,12 +33,12 @@ class Sampler final : public RhiHandle<Sampler>
 public:
 	Sampler()
 		: RhiHandle(0)
-		, Description {}
+		, Description()
 	{
 	}
 
-	Sampler(usize handleValue, SamplerDescription&& Description)
-		: RhiHandle(handleValue)
+	Sampler(const RhiHandle& handle, SamplerDescription&& Description)
+		: RhiHandle(handle)
 		, Description(Move(Description))
 	{
 	}

@@ -1,7 +1,10 @@
 #pragma once
 
-#include "Texture.hpp"
 #include "Buffer.hpp"
+#include "Texture.hpp"
+#include "Pipeline.hpp"
+
+#include "Luft/HashTable.hpp"
 
 #include "D3D12/d3d12.h"
 
@@ -94,7 +97,7 @@ inline DXGI_FORMAT ToD3D12(TextureFormat format)
 	return DXGI_FORMAT_UNKNOWN;
 }
 
-inline DXGI_FORMAT ToD3D12View(TextureFormat format, ViewType type)
+inline DXGI_FORMAT ToD3D12ViewFormat(TextureFormat format, ViewType type)
 {
 	switch (format)
 	{
@@ -136,7 +139,7 @@ inline D3D12_RESOURCE_DESC1 ToD3D12(const Texture& texture)
 {
 	const D3D12_RESOURCE_FLAGS renderTarget = texture.IsRenderTarget() ? D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET : D3D12_RESOURCE_FLAG_NONE;
 	const D3D12_RESOURCE_FLAGS depthStencil = IsDepthFormat(texture.GetFormat()) ? D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL : D3D12_RESOURCE_FLAG_NONE;
-	CHECK((renderTarget & depthStencil) == 0);
+	const D3D12_RESOURCE_FLAGS unorderedAccessView = texture.IsStorage() ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE;
 
 	return D3D12_RESOURCE_DESC1
 	{
@@ -149,8 +152,15 @@ inline D3D12_RESOURCE_DESC1 ToD3D12(const Texture& texture)
 		.Format = ToD3D12(texture.GetFormat()),
 		.SampleDesc = DefaultSampleDescription,
 		.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-		.Flags = renderTarget | depthStencil,
+		.Flags = renderTarget | depthStencil | unorderedAccessView,
 		.SamplerFeedbackMipRegion = {},
 	};
 }
 
+namespace Dxc
+{
+void ReflectInputElements(ID3D12ShaderReflection* shaderReflection, Array<D3D12_INPUT_ELEMENT_DESC>& inputElements);
+void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
+						   HashTable<String, RootParameter>* rootParameters,
+						   HashTable<String, D3D12_ROOT_PARAMETER1>* apiRootParameters);
+}

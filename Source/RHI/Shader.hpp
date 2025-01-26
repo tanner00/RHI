@@ -8,6 +8,7 @@ enum class ShaderStage
 {
 	Vertex,
 	Pixel,
+	Compute,
 };
 
 template<>
@@ -30,12 +31,12 @@ class Shader final : public RhiHandle<Shader>
 public:
 	Shader()
 		: RhiHandle(0)
-		, Description {}
+		, Description()
 	{
 	}
 
-	Shader(usize handleValue, ShaderDescription&& Description)
-		: RhiHandle(handleValue)
+	Shader(const RhiHandle& handle, ShaderDescription&& Description)
+		: RhiHandle(handle)
 		, Description(Move(Description))
 	{
 	}

@@ -191,21 +191,21 @@ GpuDevice::~GpuDevice()
 
 Buffer GpuDevice::CreateBuffer(StringView name, BufferDescription&& description)
 {
-	const Buffer buffer = { HandleIndex++, Move(description) };
+	const Buffer buffer = { RhiHandle<Buffer>(HandleIndex++), Move(description) };
 	Buffers.Add(buffer, D3D12Buffer(Device, &ConstantBufferShaderResourceUnorderedAccessViewHeap, buffer, name));
 	return buffer;
 }
 
 Buffer GpuDevice::CreateBuffer(StringView name, const void* staticData, BufferDescription&& description)
 {
-	const Buffer buffer = { HandleIndex++, Move(description) };
+	const Buffer buffer = { RhiHandle<Buffer>(HandleIndex++), Move(description) };
 	Buffers.Add(buffer, D3D12Buffer(Device, &ConstantBufferShaderResourceUnorderedAccessViewHeap, buffer, staticData, &PendingBufferUploads, name));
 	return buffer;
 }
 
 Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, TextureDescription&& description, TextureResource existingResource)
 {
-	const Texture texture = { HandleIndex++, Move(description) };
+	const Texture texture = { RhiHandle<Texture>(HandleIndex++), Move(description) };
 	Textures.Add(texture, D3D12Texture
 	(
 		Device,
@@ -217,23 +217,30 @@ Texture GpuDevice::CreateTexture(StringView name, BarrierLayout initialLayout, T
 
 Sampler GpuDevice::CreateSampler(SamplerDescription&& description)
 {
-	const Sampler sampler = { HandleIndex++, Move(description) };
+	const Sampler sampler = { RhiHandle<Sampler>(HandleIndex++), Move(description) };
 	Samplers.Add(sampler, D3D12Sampler(Device, sampler, &SamplerViewHeap));
 	return sampler;
 }
 
 Shader GpuDevice::CreateShader(ShaderDescription&& description)
 {
-	const Shader shader = { HandleIndex++, Move(description) };
+	const Shader shader = { RhiHandle<Shader>(HandleIndex++), Move(description) };
 	Shaders.Add(shader, D3D12Shader(shader));
 	return shader;
 }
 
 GraphicsPipeline GpuDevice::CreatePipeline(StringView name, GraphicsPipelineDescription&& description)
 {
-	const GraphicsPipeline graphicsPipeline = { HandleIndex++, Move(description) };
+	const GraphicsPipeline graphicsPipeline = { RhiHandle<Pipeline>(HandleIndex++), Move(description) };
 	Pipelines.Add(graphicsPipeline, D3D12GraphicsPipeline(Device, graphicsPipeline, Shaders, name));
 	return graphicsPipeline;
+}
+
+ComputePipeline GpuDevice::CreatePipeline(StringView name, ComputePipelineDescription&& description)
+{
+	const ComputePipeline computePipeline = { RhiHandle<Pipeline>(HandleIndex++), Move(description) };
+	Pipelines.Add(computePipeline, D3D12ComputePipeline(Device, computePipeline, Shaders, name));
+	return computePipeline;
 }
 
 void GpuDevice::DestroyBuffer(Buffer* buffer)

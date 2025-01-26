@@ -43,6 +43,10 @@ public:
 
 	void Draw(usize vertexCount) const;
 	void DrawIndexed(usize indexCount) const;
+	void Dispatch(usize threadGroupCountX, usize threadGroupCountY, usize threadGroupCountZ) const;
+
+	void Copy(const Buffer& destination, const Buffer& source) const;
+	void Copy(const Texture& destination, const Texture& source) const;
 
 	void GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const;
 	void BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const Buffer& buffer) const;

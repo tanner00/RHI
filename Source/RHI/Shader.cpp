@@ -73,6 +73,10 @@ static IDxcResult* CompileShader(ShaderStage stage, StringView filePath)
 		entryPoint = L"PixelMain";
 		profile = L"ps_6_6";
 		break;
+	case ShaderStage::Compute:
+		entryPoint = L"ComputeMain";
+		profile = L"cs_6_6";
+		break;
 	default:
 		CHECK(false);
 	}

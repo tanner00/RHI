@@ -33,13 +33,13 @@ class GraphicsPipeline final : public Pipeline
 {
 public:
 	GraphicsPipeline()
-		: Pipeline { RhiHandle(0) }
-		, Description {}
+		: Pipeline(RhiHandle(0))
+		, Description()
 	{
 	}
 
-	GraphicsPipeline(usize handleValue, GraphicsPipelineDescription&& Description)
-		: Pipeline { RhiHandle(handleValue) }
+	GraphicsPipeline(const RhiHandle& handle, GraphicsPipelineDescription&& Description)
+		: Pipeline(handle)
 		, Description(Move(Description))
 	{
 	}

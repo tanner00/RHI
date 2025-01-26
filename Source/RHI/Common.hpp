@@ -6,6 +6,7 @@
 #define PAD(size) char TOKEN_PASTE(Pad, __LINE__) [(size)]
 
 class Buffer;
+class ComputePipeline;
 class GpuDevice;
 class GraphicsContext;
 class GraphicsPipeline;

@@ -176,7 +176,6 @@ void GraphicsContext::SetDepthRenderTarget(const Texture& depthStencil) const
 
 void GraphicsContext::ClearRenderTarget(const Texture& renderTarget, Float4 color) const
 {
-	CHECK(CurrentPipeline);
 	const uint32 heapIndex = Device->Textures[renderTarget].GetHeapIndex();
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->RenderTargetViewHeap.GetCpu(heapIndex) };
 	CommandList->ClearRenderTargetView(cpu, reinterpret_cast<const float*>(&color), 0, nullptr);
@@ -197,7 +196,15 @@ void GraphicsContext::SetPipeline(Pipeline* pipeline)
 
 	const D3D12Pipeline& apiPipeline = Device->Pipelines[*pipeline];
 	CommandList->SetPipelineState(apiPipeline.PipelineState);
-	CommandList->SetGraphicsRootSignature(apiPipeline.RootSignature);
+	switch (apiPipeline.Type)
+	{
+	case PipelineType::Graphics:
+		CommandList->SetGraphicsRootSignature(apiPipeline.RootSignature);
+		break;
+	case PipelineType::Compute:
+		CommandList->SetComputeRootSignature(apiPipeline.RootSignature);
+		break;
+	}
 }
 
 void GraphicsContext::SetVertexBuffer(const Buffer& vertexBuffer, usize slot) const
@@ -248,36 +255,63 @@ void GraphicsContext::SetConstantBuffer(StringView name, const Buffer& constantB
 	CHECK(CurrentPipeline);
 	CHECK(constantBuffer.GetType() == BufferType::ConstantBuffer);
 
-	const D3D12Pipeline& currentPipeline = Device->Pipelines[*CurrentPipeline];
-	CHECK(currentPipeline.RootParameters.Contains(name));
+	const D3D12Pipeline& apiPipeline = Device->Pipelines[*CurrentPipeline];
+	CHECK(apiPipeline.RootParameters.Contains(name));
 
 	CHECK(offsetIndex < constantBuffer.GetCount());
 
 	const usize offset = offsetIndex * constantBuffer.GetStride();
 	const usize gpuAddress = Device->Buffers[constantBuffer].GetBufferResource(Device->GetFrameIndex(), constantBuffer.IsStream())->GetGPUVirtualAddress() + offset;
-	CommandList->SetGraphicsRootConstantBufferView
-	(
-		static_cast<uint32>(currentPipeline.RootParameters[name].Index),
-		D3D12_GPU_VIRTUAL_ADDRESS { gpuAddress }
-	);
+
+	switch (apiPipeline.Type)
+	{
+	case PipelineType::Graphics:
+		CommandList->SetGraphicsRootConstantBufferView
+		(
+			static_cast<uint32>(apiPipeline.RootParameters[name].Index),
+			D3D12_GPU_VIRTUAL_ADDRESS { gpuAddress }
+		);
+		break;
+	case PipelineType::Compute:
+		CommandList->SetComputeRootConstantBufferView
+		(
+			static_cast<uint32>(apiPipeline.RootParameters[name].Index),
+			D3D12_GPU_VIRTUAL_ADDRESS { gpuAddress }
+		);
+		break;
+	}
 }
 
 void GraphicsContext::SetRootConstants(const void* data) const
 {
 	CHECK(CurrentPipeline);
-	const D3D12Pipeline& currentPipeline = Device->Pipelines[*CurrentPipeline];
+	const D3D12Pipeline& apiPipeline = Device->Pipelines[*CurrentPipeline];
 
 	static const StringView name = "RootConstants"_view;
-	CHECK(currentPipeline.RootParameters.Contains(name));
-	const RootParameter& rootParameter = currentPipeline.RootParameters[name];
+	CHECK(apiPipeline.RootParameters.Contains(name));
+	const RootParameter& rootParameter = apiPipeline.RootParameters[name];
 
-	CommandList->SetGraphicsRoot32BitConstants
-	(
-		static_cast<uint32>(rootParameter.Index),
-		static_cast<uint32>(rootParameter.Size / sizeof(uint32)),
-		data,
-		0
-	);
+	switch (apiPipeline.Type)
+	{
+	case PipelineType::Graphics:
+		CommandList->SetGraphicsRoot32BitConstants
+		(
+			static_cast<uint32>(rootParameter.Index),
+			static_cast<uint32>(rootParameter.Size / sizeof(uint32)),
+			data,
+			0
+		);
+		break;
+	case PipelineType::Compute:
+		CommandList->SetComputeRoot32BitConstants
+		(
+			static_cast<uint32>(rootParameter.Index),
+			static_cast<uint32>(rootParameter.Size / sizeof(uint32)),
+			data,
+			0
+		);
+		break;
+	}
 }
 
 void GraphicsContext::Draw(usize vertexCount) const
@@ -290,6 +324,26 @@ void GraphicsContext::DrawIndexed(usize indexCount) const
 {
 	CHECK(CurrentPipeline);
 	CommandList->DrawIndexedInstanced(static_cast<uint32>(indexCount), 1, 0, 0, 0);
+}
+
+void GraphicsContext::Dispatch(usize threadGroupCountX, usize threadGroupCountY, usize threadGroupCountZ) const
+{
+	CHECK(CurrentPipeline);
+	CommandList->Dispatch(static_cast<uint32>(threadGroupCountX), static_cast<uint32>(threadGroupCountY), static_cast<uint32>(threadGroupCountZ));
+}
+
+void GraphicsContext::Copy(const Buffer& destination, const Buffer& source) const
+{
+	CommandList->CopyResource
+	(
+		Device->Buffers[destination].GetBufferResource(Device->GetFrameIndex(), source.IsStream()),
+		Device->Buffers[source].GetBufferResource(Device->GetFrameIndex(), source.IsStream())
+	);
+}
+
+void GraphicsContext::Copy(const Texture& destination, const Texture& source) const
+{
+	CommandList->CopyResource(Device->Textures[destination].Resource, Device->Textures[source].Resource);
 }
 
 void GraphicsContext::GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const

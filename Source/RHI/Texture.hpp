@@ -35,6 +35,7 @@ struct TextureDescription
 	TextureFormat Format;
 	uint32 MipMapCount;
 	bool RenderTarget;
+	bool Storage;
 };
 
 class Texture final : public RhiHandle<Texture>
@@ -42,12 +43,12 @@ class Texture final : public RhiHandle<Texture>
 public:
 	Texture()
 		: RhiHandle(0)
-		, Description {}
+		, Description()
 	{
 	}
 
-	Texture(usize handleValue, TextureDescription&& Description)
-		: RhiHandle(handleValue)
+	Texture(const RhiHandle& handle, TextureDescription&& Description)
+		: RhiHandle(handle)
 		, Description(Move(Description))
 	{
 	}
@@ -58,6 +59,7 @@ public:
 	TextureType GetType() const { return Description.Type; }
 
 	bool IsRenderTarget() const { return Description.RenderTarget; }
+	bool IsStorage() const { return Description.Storage; }
 
 	uint32 GetMipMapCount() const { return Description.MipMapCount; }
 	uint32 GetArrayCount() const { return Description.Type == TextureType::Cubemap ? 6 : 1; }
@@ -85,8 +87,14 @@ inline bool operator==(const Texture& a, const Texture& b)
 class D3D12Texture
 {
 public:
-	D3D12Texture(ID3D12Device11* device, ViewHeap* shaderResourceViewHeap, ViewHeap* renderTargetViewHeap, ViewHeap* depthStencilViewHeap,
-				 const Texture& texture, BarrierLayout initialLayout, TextureResource existingResource, StringView name);
+	D3D12Texture(ID3D12Device11* device,
+				 ViewHeap* constantBufferShaderResourceUnorderedAccessViewHeap,
+				 ViewHeap* renderTargetViewHeap,
+				 ViewHeap* depthStencilViewHeap,
+				 const Texture& texture,
+				 BarrierLayout initialLayout,
+				 TextureResource existingResource,
+				 StringView name);
 
 	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
 

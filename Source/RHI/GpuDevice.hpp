@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Buffer.hpp"
+#include "ComputePipeline.hpp"
 #include "GraphicsContext.hpp"
 #include "GraphicsPipeline.hpp"
 #include "Sampler.hpp"
@@ -19,6 +20,7 @@ public:
 	Sampler CreateSampler(SamplerDescription&& description);
 	Shader CreateShader(ShaderDescription&& description);
 	GraphicsPipeline CreatePipeline(StringView name, GraphicsPipelineDescription&& description);
+	ComputePipeline CreatePipeline(StringView name, ComputePipelineDescription&& description);
 
 	void DestroyBuffer(Buffer* buffer);
 	void DestroyTexture(Texture* texture);

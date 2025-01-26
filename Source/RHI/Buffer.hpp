@@ -32,12 +32,12 @@ class Buffer final : public RhiHandle<Buffer>
 public:
 	Buffer()
 		: RhiHandle(0)
-		, Description {}
+		, Description()
 	{
 	}
 
-	Buffer(usize handleValue, BufferDescription&& Description)
-		: RhiHandle(handleValue)
+	Buffer(const RhiHandle& handle, BufferDescription&& Description)
+		: RhiHandle(handle)
 		, Description(Move(Description))
 	{
 	}
@@ -76,9 +76,16 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 class D3D12Buffer
 {
 public:
-	D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceViewHeap, const Buffer& buffer, StringView name);
-	D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceViewHeap, const Buffer& buffer, const void* staticData,
-				Array<UploadPair<Buffer>>* pendingBufferUploads, StringView name);
+	D3D12Buffer(ID3D12Device11* device,
+				ViewHeap* constantBufferShaderResourceUnorderedAccessViewHeap,
+				const Buffer& buffer,
+				StringView name);
+	D3D12Buffer(ID3D12Device11* device,
+				ViewHeap* constantBufferShaderResourceUnorderedAccessViewHeap,
+				const Buffer& buffer,
+				const void* staticData,
+				Array<UploadPair<Buffer>>* pendingBufferUploads,
+				StringView name);
 
 	BufferResource GetOnlyBufferResource() const
 	{

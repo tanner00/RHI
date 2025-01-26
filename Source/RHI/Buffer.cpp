@@ -29,7 +29,7 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 	return resource;
 }
 
-D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceViewHeap, const Buffer& buffer, StringView name)
+D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceUnorderedAccessViewHeap, const Buffer& buffer, StringView name)
 {
 	CHECK(buffer.GetSize() != 0);
 
@@ -41,7 +41,7 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderR
 		{
 			Resource[i] = AllocateBuffer(device, buffer.GetSize(), buffer.IsStream(), name);
 
-			HeapIndex[i] = (buffer.GetType() != BufferType::VertexBuffer) ? constantBufferShaderResourceViewHeap->AllocateIndex() : 0;
+			HeapIndex[i] = (buffer.GetType() != BufferType::VertexBuffer) ? constantBufferShaderResourceUnorderedAccessViewHeap->AllocateIndex() : 0;
 
 			if (buffer.GetType() == BufferType::ConstantBuffer)
 			{
@@ -53,7 +53,7 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderR
 				device->CreateConstantBufferView
 				(
 					&viewDescription,
-					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceViewHeap->GetCpu(HeapIndex[i]) }
+					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceUnorderedAccessViewHeap->GetCpu(HeapIndex[i]) }
 				);
 			}
 			else if (buffer.GetType() == BufferType::StructuredBuffer)
@@ -75,7 +75,7 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderR
 				(
 					Resource[i],
 					&viewDescription,
-					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceViewHeap->GetCpu(HeapIndex[i]) }
+					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceUnorderedAccessViewHeap->GetCpu(HeapIndex[i]) }
 				);
 			}
 		}
@@ -87,9 +87,13 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderR
 	}
 }
 
-D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceViewHeap, const Buffer& buffer, const void* staticData,
-						 Array<UploadPair<Buffer>>* pendingBufferUploads, StringView name)
-	: D3D12Buffer(device, constantBufferShaderResourceViewHeap, buffer, name)
+D3D12Buffer::D3D12Buffer(ID3D12Device11* device,
+						 ViewHeap* constantBufferShaderResourceUnorderedAccessViewHeap,
+						 const Buffer& buffer,
+						 const void* staticData,
+						 Array<UploadPair<Buffer>>* pendingBufferUploads,
+						 StringView name)
+	: D3D12Buffer(device, constantBufferShaderResourceUnorderedAccessViewHeap, buffer, name)
 {
 	CHECK(buffer.IsStatic());
 
