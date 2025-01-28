@@ -38,7 +38,7 @@ static IDxcResult* CompileShader(ShaderStage stage, StringView filePath)
 	uint32 codePage = DXC_CP_UTF8;
 	IDxcBlobEncoding* sourceBlob = nullptr;
 	HRESULT dxcResult = Utils->LoadFile(pathBuffer, &codePage, &sourceBlob);
-	VERIFY(SUCCEEDED(dxcResult), "Failed to read shader from filesystem!");
+	VERIFY(SUCCEEDED(dxcResult), "Failed to read shader from file system!");
 
 	const wchar_t* arguments[] =
 	{
@@ -66,15 +66,15 @@ static IDxcResult* CompileShader(ShaderStage stage, StringView filePath)
 	switch (stage)
 	{
 	case ShaderStage::Vertex:
-		entryPoint = L"VertexMain";
+		entryPoint = L"VertexStart";
 		profile = L"vs_6_6";
 		break;
 	case ShaderStage::Pixel:
-		entryPoint = L"PixelMain";
+		entryPoint = L"PixelStart";
 		profile = L"ps_6_6";
 		break;
 	case ShaderStage::Compute:
-		entryPoint = L"ComputeMain";
+		entryPoint = L"ComputeStart";
 		profile = L"cs_6_6";
 		break;
 	default:
