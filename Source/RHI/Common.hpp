@@ -2,6 +2,7 @@
 
 #include "Luft/Base.hpp"
 #include "Luft/Error.hpp"
+#include "Luft/Hash.hpp"
 
 #define PAD(size) char TOKEN_PASTE(Pad, __LINE__) [(size)]
 
