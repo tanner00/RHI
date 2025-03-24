@@ -42,7 +42,7 @@ GraphicsContext::GraphicsContext(GpuDevice* device)
 		.Flags = D3D12_RESOURCE_FLAG_NONE,
 		.SamplerFeedbackMipRegion = {},
 	};
-	CHECK_RESULT(Device->GetDevice()->CreateCommittedResource3(&ReadbackHeapProperties, D3D12_HEAP_FLAG_CREATE_NOT_ZEROED,
+	CHECK_RESULT(Device->GetDevice()->CreateCommittedResource3(&ReadbackHeapProperties, D3D12_HEAP_FLAG_NONE,
 															   &frameTimeQueryResourceDescription, ToD3D12(BarrierLayout::Undefined), nullptr, nullptr,
 															   0, NoCastableFormats, IID_PPV_ARGS(&FrameTimeQueryResource)));
 
