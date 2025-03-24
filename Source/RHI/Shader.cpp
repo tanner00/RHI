@@ -30,10 +30,16 @@ static IDxcResult* CompileShader(ShaderStage stage, StringView filePath)
 {
 	CHECK(Compiler && Utils);
 
-	wchar_t pathBuffer[MAX_PATH];
+	wchar_t pathBuffer[MAX_PATH] = {};
 	VERIFY(filePath.GetLength() < sizeof(pathBuffer), "File path length limit exceeded!");
-	const errno_t error = mbstowcs_s(nullptr, pathBuffer, filePath.GetData(), filePath.GetLength());
-	CHECK(error == 0);
+
+	const int32 result = MultiByteToWideChar(CP_UTF8,
+											 MB_ERR_INVALID_CHARS,
+											 filePath.GetData(),
+											 static_cast<int32>(filePath.GetLength()),
+											 pathBuffer,
+											 ARRAY_COUNT(pathBuffer));
+	CHECK(SUCCEEDED(result));
 
 	uint32 codePage = DXC_CP_UTF8;
 	IDxcBlobEncoding* sourceBlob = nullptr;
