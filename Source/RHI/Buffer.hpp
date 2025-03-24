@@ -36,9 +36,9 @@ public:
 	{
 	}
 
-	Buffer(const RhiHandle& handle, BufferDescription&& Description)
+	Buffer(const RhiHandle& handle, BufferDescription&& description)
 		: RhiHandle(handle)
-		, Description(Move(Description))
+		, Description(Move(description))
 	{
 	}
 

@@ -47,9 +47,9 @@ public:
 	{
 	}
 
-	Texture(const RhiHandle& handle, TextureDescription&& Description)
+	Texture(const RhiHandle& handle, TextureDescription&& description)
 		: RhiHandle(handle)
-		, Description(Move(Description))
+		, Description(Move(description))
 	{
 	}
 
