@@ -11,7 +11,7 @@
 #define SAFE_RELEASE(p) if ((p)) { (p)->Release(); (p) = nullptr; }
 
 #if DEBUG
-#define CHECK_RESULT(expression) do { const HRESULT result = (expression); CHECK(SUCCEEDED(result)); } while (false)
+#define CHECK_RESULT(expression) do { const HRESULT result##__LINE__ = (expression); CHECK(SUCCEEDED(result##__LINE__)); } while (false)
 #else
 #define CHECK_RESULT(expression) do { (expression); } while (false)
 #endif
