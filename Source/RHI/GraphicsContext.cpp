@@ -153,37 +153,37 @@ void GraphicsContext::SetViewport(uint32 width, uint32 height) const
 
 void GraphicsContext::SetRenderTarget(const Texture& renderTarget) const
 {
-	const uint32 heapIndex = Device->Textures[renderTarget].GetHeapIndex();
+	const uint32 heapIndex = Device->Textures[renderTarget].GetHeapIndex(ViewType::RenderTarget);
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->RenderTargetViewHeap.GetCpu(heapIndex) };
 	CommandList->OMSetRenderTargets(1, &cpu, true, nullptr);
 }
 
 void GraphicsContext::SetRenderTarget(const Texture& renderTarget, const Texture& depthStencil) const
 {
-	const uint32 renderTargetHeapIndex = Device->Textures[renderTarget].GetHeapIndex();
+	const uint32 renderTargetHeapIndex = Device->Textures[renderTarget].GetHeapIndex(ViewType::RenderTarget);
 	const D3D12_CPU_DESCRIPTOR_HANDLE renderTargetCpu = { Device->RenderTargetViewHeap.GetCpu(renderTargetHeapIndex) };
-	const uint32 depthStencilHeapIndex = Device->Textures[depthStencil].GetHeapIndex();
+	const uint32 depthStencilHeapIndex = Device->Textures[depthStencil].GetHeapIndex(ViewType::DepthStencil);
 	const D3D12_CPU_DESCRIPTOR_HANDLE depthStencilCpu = { Device->DepthStencilViewHeap.GetCpu(depthStencilHeapIndex) };
 	CommandList->OMSetRenderTargets(1, &renderTargetCpu, true, &depthStencilCpu);
 }
 
 void GraphicsContext::SetDepthRenderTarget(const Texture& depthStencil) const
 {
-	const uint32 heapIndex = Device->Textures[depthStencil].GetHeapIndex();
+	const uint32 heapIndex = Device->Textures[depthStencil].GetHeapIndex(ViewType::DepthStencil);
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->DepthStencilViewHeap.GetCpu(heapIndex) };
 	CommandList->OMSetRenderTargets(0, nullptr, true, &cpu);
 }
 
 void GraphicsContext::ClearRenderTarget(const Texture& renderTarget, Float4 color) const
 {
-	const uint32 heapIndex = Device->Textures[renderTarget].GetHeapIndex();
+	const uint32 heapIndex = Device->Textures[renderTarget].GetHeapIndex(ViewType::RenderTarget);
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->RenderTargetViewHeap.GetCpu(heapIndex) };
 	CommandList->ClearRenderTargetView(cpu, reinterpret_cast<const float*>(&color), 0, nullptr);
 }
 
 void GraphicsContext::ClearDepthStencil(const Texture& depthStencil) const
 {
-	const uint32 heapIndex = Device->Textures[depthStencil].GetHeapIndex();
+	const uint32 heapIndex = Device->Textures[depthStencil].GetHeapIndex(ViewType::DepthStencil);
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = { Device->DepthStencilViewHeap.GetCpu(heapIndex) };
 
 	const D3D12_CLEAR_FLAGS clearFlag = IsStencilFormat(depthStencil.GetFormat()) ? (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL) : D3D12_CLEAR_FLAG_DEPTH;

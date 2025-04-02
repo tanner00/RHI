@@ -134,15 +134,19 @@ D3D12Texture::D3D12Texture(ID3D12Device11* device,
 
 	if (IsDepthFormat(texture.GetFormat()))
 	{
-		HeapIndex = CreateDepthStencilView(device, depthStencilViewHeap, Resource, texture);
-	}
-	else if (texture.IsRenderTarget())
-	{
-		HeapIndex = CreateRenderTargetView(device, renderTargetViewHeap, Resource, texture);
+		HeapIndices[static_cast<usize>(ViewType::DepthStencil)] = CreateDepthStencilView(device, depthStencilViewHeap, Resource, texture);
 	}
 	else
 	{
-		HeapIndex = CreateShaderResourceView(device, constantBufferShaderResourceUnorderedAccessViewHeap, Resource, texture);
+		HeapIndices[static_cast<usize>(ViewType::ShaderResource)] = CreateShaderResourceView(device,
+																							 constantBufferShaderResourceUnorderedAccessViewHeap,
+																							 Resource,
+																							 texture);
+
+		if (texture.IsRenderTarget())
+		{
+			HeapIndices[static_cast<usize>(ViewType::RenderTarget)] = CreateRenderTargetView(device, renderTargetViewHeap, Resource, texture);
+		}
 	}
 }
 

@@ -85,12 +85,12 @@ public:
 
 	TextureResource GetTextureResource() const { CHECK(Resource); return Resource; }
 
-	uint32 GetHeapIndex() const { CHECK(HeapIndex); return HeapIndex; }
+	uint32 GetHeapIndex(ViewType type) const { CHECK(HeapIndices[static_cast<usize>(type)]); return HeapIndices[static_cast<usize>(type)]; }
 
 	static void Write(ID3D12Device11* device, const Texture& texture, const void* data, Array<UploadPair<Texture>>* pendingTextureUploads);
 
 	TextureResource Resource;
-	uint32 HeapIndex;
+	uint32 HeapIndices[static_cast<usize>(ViewType::Count)];
 };
 
 inline bool IsDepthFormat(TextureFormat format)

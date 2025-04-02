@@ -354,9 +354,9 @@ uint32 GpuDevice::Get(const Buffer& buffer)
 	return Buffers[buffer].GetHeapIndex(GetFrameIndex(), buffer.IsStream());
 }
 
-uint32 GpuDevice::Get(const Texture& texture)
+uint32 GpuDevice::Get(const Texture& texture, ViewType type)
 {
-	return Textures[texture].GetHeapIndex();
+	return Textures[texture].GetHeapIndex(type);
 }
 
 uint32 GpuDevice::Get(const Sampler& sampler)

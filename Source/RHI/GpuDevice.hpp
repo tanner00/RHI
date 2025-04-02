@@ -6,6 +6,7 @@
 #include "GraphicsPipeline.hpp"
 #include "Sampler.hpp"
 #include "Shader.hpp"
+#include "Texture.hpp"
 #include "ViewHeap.hpp"
 
 class GpuDevice : public NoCopy
@@ -34,7 +35,7 @@ public:
 	void Write(const Texture& texture, const void* data);
 
 	uint32 Get(const Buffer& buffer);
-	uint32 Get(const Texture& texture);
+	uint32 Get(const Texture& texture, ViewType type);
 	uint32 Get(const Sampler& sampler);
 
 	void Submit(const GraphicsContext& context);
