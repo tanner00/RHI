@@ -161,7 +161,7 @@ void D3D12Texture::Write(ID3D12Device11* device, const Texture& texture, const v
 	device->GetCopyableFootprints1(&textureDescription, 0, texture.GetCount(), 0,
 								   layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
 
-	const BufferResource resource = AllocateBuffer(device, totalSize, true, "Upload [Texture]"_view);
+	const BufferResource resource = AllocateBuffer(device, totalSize, true, false, "Upload [Texture]"_view);
 
 	usize dataOffset = 0;
 

@@ -10,6 +10,7 @@ enum class BufferType
 	ConstantBuffer,
 	VertexBuffer,
 	StructuredBuffer,
+	StorageBuffer,
 };
 
 enum class BufferUsage
@@ -58,7 +59,7 @@ private:
 
 HASH_RHI_HANDLE(Buffer);
 
-BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, StringView name);
+BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, bool allowUnorderedAccess, StringView name);
 
 class D3D12Buffer
 {
@@ -90,21 +91,24 @@ public:
 
 	uint32 GetOnlyHeapIndex() const
 	{
-		CHECK(HeapIndex[0] && !HeapIndex[1]);
-		return HeapIndex[0];
+		CHECK(HeapIndices[0] && !HeapIndices[1]);
+		return HeapIndices[0];
 	}
 
 	uint32 GetHeapIndex(usize index, bool stream) const
 	{
 		CHECK(index < FramesInFlight);
-		const uint32 heapIndex = stream ? HeapIndex[index] : HeapIndex[0];
+		const uint32 heapIndex = stream ? HeapIndices[index] : HeapIndices[0];
 		CHECK(heapIndex);
 		return heapIndex;
 	}
 
-	void Write(ID3D12Device11* device, const Buffer& buffer, const void* data, usize frameIndex,
+	void Write(ID3D12Device11* device,
+			   const Buffer& buffer,
+			   const void* data,
+			   usize frameIndex,
 			   Array<UploadPair<Buffer>>* pendingBufferUploads) const;
 
 	BufferResource Resource[FramesInFlight];
-	uint32 HeapIndex[FramesInFlight];
+	uint32 HeapIndices[FramesInFlight];
 };

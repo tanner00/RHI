@@ -4,7 +4,7 @@
 
 #include "D3D12/d3d12.h"
 
-BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, StringView name)
+BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, bool allowUnorderedAccess, StringView name)
 {
 	const D3D12_RESOURCE_DESC1 bufferDescription =
 	{
@@ -17,7 +17,7 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 		.Format = DXGI_FORMAT_UNKNOWN,
 		.SampleDesc = DefaultSampleDescription,
 		.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR,
-		.Flags = D3D12_RESOURCE_FLAG_NONE,
+		.Flags = allowUnorderedAccess ? D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS : D3D12_RESOURCE_FLAG_NONE,
 		.SamplerFeedbackMipRegion = {},
 	};
 
@@ -29,7 +29,10 @@ BufferResource AllocateBuffer(ID3D12Device11* device, usize size, bool upload, S
 	return resource;
 }
 
-D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderResourceUnorderedAccessViewHeap, const Buffer& buffer, StringView name)
+D3D12Buffer::D3D12Buffer(ID3D12Device11* device,
+						 ViewHeap* constantBufferShaderResourceUnorderedAccessViewHeap,
+						 const Buffer& buffer,
+						 StringView name)
 {
 	CHECK(buffer.GetSize() != 0);
 
@@ -39,9 +42,10 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderR
 		const bool validResource = i < resourceCount;
 		if (validResource)
 		{
-			Resource[i] = AllocateBuffer(device, buffer.GetSize(), buffer.IsStream(), name);
+			const bool allowUnorderedAccess = buffer.GetType() == BufferType::StorageBuffer;
+			Resource[i] = AllocateBuffer(device, buffer.GetSize(), buffer.IsStream(), allowUnorderedAccess, name);
 
-			HeapIndex[i] = (buffer.GetType() != BufferType::VertexBuffer) ? constantBufferShaderResourceUnorderedAccessViewHeap->AllocateIndex() : 0;
+			HeapIndices[i] = (buffer.GetType() != BufferType::VertexBuffer) ? constantBufferShaderResourceUnorderedAccessViewHeap->AllocateIndex() : 0;
 
 			if (buffer.GetType() == BufferType::ConstantBuffer)
 			{
@@ -53,7 +57,7 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderR
 				device->CreateConstantBufferView
 				(
 					&viewDescription,
-					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceUnorderedAccessViewHeap->GetCpu(HeapIndex[i]) }
+					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceUnorderedAccessViewHeap->GetCpu(HeapIndices[i]) }
 				);
 			}
 			else if (buffer.GetType() == BufferType::StructuredBuffer)
@@ -75,14 +79,37 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device, ViewHeap* constantBufferShaderR
 				(
 					Resource[i],
 					&viewDescription,
-					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceUnorderedAccessViewHeap->GetCpu(HeapIndex[i]) }
+					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceUnorderedAccessViewHeap->GetCpu(HeapIndices[i]) }
+				);
+			}
+			else if (buffer.GetType() == BufferType::StorageBuffer)
+			{
+				const D3D12_UNORDERED_ACCESS_VIEW_DESC viewDescription =
+				{
+					.Format = DXGI_FORMAT_R32_TYPELESS,
+					.ViewDimension = D3D12_UAV_DIMENSION_BUFFER,
+					.Buffer =
+					{
+						.FirstElement = 0,
+						.NumElements = static_cast<uint32>(buffer.GetSize() / sizeof(uint32)),
+						.StructureByteStride = 0,
+						.CounterOffsetInBytes = 0,
+						.Flags = D3D12_BUFFER_UAV_FLAG_RAW,
+					}
+				};
+				device->CreateUnorderedAccessView
+				(
+					Resource[i],
+					nullptr,
+					&viewDescription,
+					D3D12_CPU_DESCRIPTOR_HANDLE { constantBufferShaderResourceUnorderedAccessViewHeap->GetCpu(HeapIndices[i]) }
 				);
 			}
 		}
 		else
 		{
 			Resource[i] = nullptr;
-			HeapIndex[i] = 0;
+			HeapIndices[i] = 0;
 		}
 	}
 }
@@ -97,7 +124,7 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device,
 {
 	CHECK(buffer.IsStatic());
 
-	const BufferResource uploadResource = AllocateBuffer(device, buffer.GetSize(), true, "Upload [Buffer]"_view);
+	const BufferResource uploadResource = AllocateBuffer(device, buffer.GetSize(), true, false, "Upload [Buffer]"_view);
 	pendingBufferUploads->Add({ uploadResource, buffer });
 
 	void* mapped = nullptr;
@@ -106,7 +133,10 @@ D3D12Buffer::D3D12Buffer(ID3D12Device11* device,
 	uploadResource->Unmap(0, &WriteNothing);
 }
 
-void D3D12Buffer::Write(ID3D12Device11* device, const Buffer& buffer, const void* data, usize frameIndex,
+void D3D12Buffer::Write(ID3D12Device11* device,
+						const Buffer& buffer,
+						const void* data,
+						usize frameIndex,
 						Array<UploadPair<Buffer>>* pendingBufferUploads) const
 {
 	CHECK(!buffer.IsStatic());
@@ -118,7 +148,7 @@ void D3D12Buffer::Write(ID3D12Device11* device, const Buffer& buffer, const void
 	}
 	else if (buffer.IsDynamic())
 	{
-		resource = AllocateBuffer(device, buffer.GetSize(), true, "Upload [Buffer]"_view);
+		resource = AllocateBuffer(device, buffer.GetSize(), true, false, "Upload [Buffer]"_view);
 		pendingBufferUploads->Add(UploadPair<Buffer>
 		{
 			.Source = resource,
