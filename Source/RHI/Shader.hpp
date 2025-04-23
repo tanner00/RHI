@@ -1,23 +1,17 @@
 #pragma once
 
-#include "Common.hpp"
+#include "Forward.hpp"
 
 #include "Luft/Hash.hpp"
 
-enum class ShaderStage
+namespace RHI
+{
+
+enum class ShaderStage : uint8
 {
 	Vertex,
 	Pixel,
 	Compute,
-};
-
-template<>
-struct Hash<ShaderStage>
-{
-	uint64 operator()(ShaderStage stage) const
-	{
-		return HashFnv1a(&stage, sizeof(stage));
-	}
 };
 
 struct ShaderDescription
@@ -26,41 +20,35 @@ struct ShaderDescription
 	StringView FilePath;
 };
 
-class Shader final : public RhiHandle<Shader>
+class Shader final : public ShaderDescription
 {
 public:
 	Shader()
-		: RhiHandle(0)
-		, Description()
+		: ShaderDescription()
+		, Backend(nullptr)
 	{
 	}
 
-	Shader(const RhiHandle& handle, ShaderDescription&& Description)
-		: RhiHandle(handle)
-		, Description(Move(Description))
+	Shader(const ShaderDescription& description, RHI_BACKEND(Shader)* backend)
+		: ShaderDescription(description)
+		, Backend(backend)
 	{
 	}
 
-	ShaderStage GetStage() const { return Description.Stage; }
-	StringView GetFilePath() const { return Description.FilePath; }
+	static Shader Invalid() { return {}; }
+	bool IsValid() const { return Backend != nullptr; }
 
-private:
-	ShaderDescription Description;
+	RHI_BACKEND(Shader)* Backend;
 };
 
-HASH_RHI_HANDLE(Shader);
-
-class D3D12Shader
-{
-public:
-	explicit D3D12Shader(const Shader& shader);
-
-	IDxcBlob* Blob;
-	ID3D12ShaderReflection* Reflection;
-};
-
-namespace Dxc
-{
-void Init();
-void Shutdown();
 }
+
+template<>
+struct Hash<RHI::ShaderStage>
+{
+	uint64 operator()(RHI::ShaderStage key) const
+	{
+		return HashFnv1a(&key, sizeof(key));
+	}
+};
+

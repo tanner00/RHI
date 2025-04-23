@@ -1,12 +1,10 @@
 #include "ViewHeap.hpp"
-#include "GpuDevice.hpp"
-#include "PrivateCommon.hpp"
+#include "Device.hpp"
 
-#include "Luft/Math.hpp"
+namespace RHI::D3D12
+{
 
-#include "D3D12/d3d12.h"
-
-static D3D12_DESCRIPTOR_HEAP_TYPE ToD3D12(ViewHeapType type)
+static D3D12_DESCRIPTOR_HEAP_TYPE To(ViewHeapType type)
 {
 	switch (type)
 	{
@@ -23,25 +21,25 @@ static D3D12_DESCRIPTOR_HEAP_TYPE ToD3D12(ViewHeapType type)
 	return D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
 }
 
-void ViewHeap::Create(ID3D12Device11* device, uint32 viewCount, ViewHeapType type, bool shaderVisible)
+void ViewHeap::Create(uint32 viewCount, ViewHeapType type, bool shaderVisible, const Device* device)
 {
 	Count = viewCount;
 	Index = 0;
 
 	const D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDescriptor =
 	{
-		.Type = ToD3D12(type),
+		.Type = To(type),
 		.NumDescriptors = Count,
 		.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
 		.NodeMask = 0,
 	};
-	CHECK_RESULT(device->CreateDescriptorHeap(&descriptorHeapDescriptor, IID_PPV_ARGS(&Heap)));
-	ViewSize = device->GetDescriptorHandleIncrementSize(descriptorHeapDescriptor.Type);
+	CHECK_RESULT(device->Native->CreateDescriptorHeap(&descriptorHeapDescriptor, IID_PPV_ARGS(&Native)));
+	ViewSize = device->Native->GetDescriptorHandleIncrementSize(descriptorHeapDescriptor.Type);
 }
 
 void ViewHeap::Destroy()
 {
-	SAFE_RELEASE(Heap);
+	SAFE_RELEASE(Native);
 	ViewSize = 0;
 	Count = 0;
 	Index = 0;
@@ -59,18 +57,14 @@ void ViewHeap::Reset()
 	Index = 0;
 }
 
-CpuView ViewHeap::GetCpu(uint32 index) const
+D3D12_CPU_DESCRIPTOR_HANDLE ViewHeap::GetCpu(usize index) const
 {
-	return Heap->GetCPUDescriptorHandleForHeapStart().ptr + index * ViewSize;
+	return D3D12_CPU_DESCRIPTOR_HANDLE { Native->GetCPUDescriptorHandleForHeapStart().ptr + index * ViewSize };
 }
 
-GpuView ViewHeap::GetGpu(uint32 index) const
+D3D12_GPU_DESCRIPTOR_HANDLE ViewHeap::GetGpu(usize index) const
 {
-	return Heap->GetGPUDescriptorHandleForHeapStart().ptr + index * ViewSize;
+	return D3D12_GPU_DESCRIPTOR_HANDLE { Native->GetGPUDescriptorHandleForHeapStart().ptr + index * ViewSize };
 }
 
-ID3D12DescriptorHeap* ViewHeap::GetHeap() const
-{
-	CHECK(Heap);
-	return Heap;
 }

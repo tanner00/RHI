@@ -19,9 +19,9 @@ function DefinePlatforms()
 	platforms { "Win64" }
 end
 
-function UseWindowsSettings()
+function UseWindowsSettings(extra_define)
 	filter "platforms:Win64"
-		defines { "WINDOWS=1" }
+		defines { "PLATFORM_WINDOWS=1", extra_define }
 		system "Windows"
 		toolset "Msc"
 		architecture "x86_64"

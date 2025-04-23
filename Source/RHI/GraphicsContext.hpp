@@ -1,9 +1,13 @@
 #pragma once
 
-#include "Common.hpp"
+#include "Barrier.hpp"
+#include "Forward.hpp"
+#include "HLSL.hpp"
 
-#include "Luft/NoCopy.hpp"
 #include "Luft/String.hpp"
+
+namespace RHI
+{
 
 template<typename T>
 struct BarrierPair
@@ -12,63 +16,56 @@ struct BarrierPair
 	T After;
 };
 
-class GraphicsContext : public NoCopy
+struct GraphicsContextDescription
+{
+};
+
+class GraphicsContext final : public GraphicsContextDescription
 {
 public:
-	explicit GraphicsContext(GpuDevice* device);
-	~GraphicsContext();
+	GraphicsContext(const GraphicsContextDescription& description, RHI_BACKEND(GraphicsContext)* backend)
+		: GraphicsContextDescription(description)
+		, Backend(backend)
+	{
+	}
 
 	void Begin() const;
 	void End();
 
 	void SetViewport(uint32 width, uint32 height) const;
 
-	void SetRenderTarget(const Texture& renderTarget) const;
-	void SetRenderTarget(const Texture& renderTarget, const Texture& depthStencil) const;
-	void SetDepthRenderTarget(const Texture& depthStencil) const;
+	void SetRenderTarget(const TextureView& renderTarget) const;
+	void SetRenderTarget(const TextureView& renderTarget, const TextureView& depthStencil) const;
+	void SetDepthRenderTarget(const TextureView& depthStencil) const;
 
-	void ClearRenderTarget(const Texture& renderTarget, Float4 color) const;
-	void ClearDepthStencil(const Texture& depthStencil) const;
+	void ClearRenderTarget(const TextureView& renderTarget, Float4 color) const;
+	void ClearDepthStencil(const TextureView& depthStencil) const;
 
-	void SetPipeline(Pipeline* pipeline);
+	void SetPipeline(const GraphicsPipeline& pipeline);
+	void SetPipeline(const ComputePipeline& pipeline);
 
-	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot) const;
-	void SetVertexBuffer(const Buffer& vertexBuffer, usize slot, usize offset, usize size, usize stride) const;
-	void SetIndexBuffer(const Buffer& indexBuffer) const;
-	void SetIndexBuffer(const Buffer& indexBuffer, usize offset, usize size, usize stride) const;
+	void SetVertexBuffer(const Resource& vertexBuffer, usize slot, usize offset, usize size, usize stride) const;
+	void SetIndexBuffer(const Resource& indexBuffer, usize offset, usize size, usize stride) const;
 
-	void SetConstantBuffer(StringView name, const Buffer& constantBuffer, usize offsetIndex = 0) const;
-
+	void SetConstantBuffer(StringView name, const Resource& buffer, usize offsetIndex = 0) const;
 	void SetRootConstants(const void* data) const;
 
 	void Draw(usize vertexCount) const;
 	void DrawIndexed(usize indexCount) const;
 	void Dispatch(usize threadGroupCountX, usize threadGroupCountY, usize threadGroupCountZ) const;
 
-	void Copy(const Buffer& destination, const Buffer& source) const;
-	void Copy(const Texture& destination, const Texture& source) const;
+	void Copy(const Resource& destination, const Resource& source) const;
 
 	void GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const;
-	void BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const Buffer& buffer) const;
-	void TextureBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, BarrierPair<BarrierLayout> layout, const Texture& texture) const;
+	void BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const Resource& buffer) const;
+	void TextureBarrier(BarrierPair<BarrierStage> stage,
+						BarrierPair<BarrierAccess> access,
+						BarrierPair<BarrierLayout> layout,
+						const Resource& texture) const;
 
-	double GetMostRecentGpuTime() const { return MostRecentGpuTime; }
+	double GetMostRecentGpuTime() const;
 
-private:
-	ID3D12GraphicsCommandList10* GetCommandList() const { CHECK(CommandList); return CommandList; }
-
-	ID3D12CommandAllocator* CommandAllocators[FramesInFlight];
-	ID3D12GraphicsCommandList10* CommandList;
-
-	Pipeline* CurrentPipeline;
-	GpuDevice* Device;
-
-#if !RELEASE
-	ID3D12QueryHeap* FrameTimeQueryHeap;
-	BufferResource FrameTimeQueryResource;
-#endif
-
-	double MostRecentGpuTime;
-
-	friend GpuDevice;
+	RHI_BACKEND(GraphicsContext)* Backend;
 };
+
+}

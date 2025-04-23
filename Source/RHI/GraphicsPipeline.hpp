@@ -1,67 +1,59 @@
 #pragma once
 
-#include "Common.hpp"
-#include "Pipeline.hpp"
-#include "Texture.hpp"
+#include "Allocator.hpp"
+#include "Forward.hpp"
+#include "Resource.hpp"
+#include "Shader.hpp"
 
 #include "Luft/HashTable.hpp"
+
+namespace RHI
+{
 
 class ShaderStages : public HashTable<ShaderStage, Shader>
 {
 public:
 	ShaderStages()
-		: HashTable(1, &GlobalAllocator::Get())
+		: HashTable(1, RHI::Allocator)
 	{
 	}
 
 	void AddStage(const Shader& shader)
 	{
-		CHECK(!Contains(shader.GetStage()));
-		Add(shader.GetStage(), shader);
+		CHECK(!Contains(shader.Stage));
+		Add(shader.Stage, shader);
 	}
 };
 
 struct GraphicsPipelineDescription
 {
 	ShaderStages Stages;
-	TextureFormat RenderTargetFormat;
-	TextureFormat DepthFormat;
+	ResourceFormat RenderTargetFormat;
+	ResourceFormat DepthStencilFormat;
 	bool AlphaBlend;
+
+	StringView Name;
 };
 
-class GraphicsPipeline final : public Pipeline
+class GraphicsPipeline final : public GraphicsPipelineDescription
 {
 public:
 	GraphicsPipeline()
-		: Pipeline(RhiHandle(0))
-		, Description()
+		: GraphicsPipelineDescription()
+		, Backend(nullptr)
 	{
 	}
 
-	GraphicsPipeline(const RhiHandle& handle, GraphicsPipelineDescription&& Description)
-		: Pipeline(handle)
-		, Description(Move(Description))
+	GraphicsPipeline(const GraphicsPipelineDescription& description, RHI_BACKEND(GraphicsPipeline)* backend)
+		: GraphicsPipelineDescription(description)
+		, Backend(backend)
 	{
 	}
 
-	usize GetStageCount() const { return Description.Stages.GetCount(); }
-	bool HasShaderStage(ShaderStage stage) const { return Description.Stages.Contains(stage); }
-	Shader GetShaderStage(ShaderStage stage) const { return Description.Stages[stage]; }
+	static GraphicsPipeline Invalid() { return {}; }
+	bool IsValid() const { return Backend != nullptr; }
 
-	TextureFormat GetRenderTargetFormat() const { return Description.RenderTargetFormat; }
-	TextureFormat GetDepthFormat() const { return Description.DepthFormat; }
-
-	bool IsAlphaBlended() const { return Description.AlphaBlend; }
-
-private:
-	GraphicsPipelineDescription Description;
+	RHI_BACKEND(GraphicsPipeline)* Backend;
 };
 
-class D3D12GraphicsPipeline final : public D3D12Pipeline
-{
-public:
-	D3D12GraphicsPipeline(ID3D12Device11* device,
-						  const GraphicsPipeline& graphicsPipeline,
-						  const HashTable<Shader, D3D12Shader>& apiShaders,
-						  StringView name);
-};
+}

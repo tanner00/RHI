@@ -1,39 +1,35 @@
 #include "GraphicsPipeline.hpp"
-#include "PrivateCommon.hpp"
+#include "Base.hpp"
+#include "Convert.hpp"
+#include "Device.hpp"
 
 #include "dxc/dxcapi.h"
 
-D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device,
-											 const GraphicsPipeline& graphicsPipeline,
-											 const HashTable<Shader, D3D12Shader>& apiShaders,
-											 StringView name)
-	: D3D12Pipeline(PipelineType::Graphics)
+namespace RHI::D3D12
 {
-	CHECK(graphicsPipeline.HasShaderStage(ShaderStage::Vertex));
-	const bool usesPixelShader = graphicsPipeline.HasShaderStage(ShaderStage::Pixel);
+
+GraphicsPipeline::GraphicsPipeline(const GraphicsPipelineDescription& description, D3D12::Device* device)
+	: Pipeline(device)
+	, GraphicsPipelineDescription(description)
+{
+	CHECK(Stages.Contains(ShaderStage::Vertex));
+	const bool usesPixelShader = Stages.Contains(ShaderStage::Pixel);
+	CHECK(usesPixelShader ? (Stages.GetCount() == 2) : (Stages.GetCount() == 1));
+
+	const Shader* backendVertexShader = Stages[ShaderStage::Vertex].Backend;
+	const Shader* backendPixelShader = usesPixelShader ? Stages[ShaderStage::Pixel].Backend : nullptr;
+
+	Array<D3D12_INPUT_ELEMENT_DESC> inputElements(Allocator);
+	Dxc::ReflectInputElements(backendVertexShader->Reflection, inputElements);
+
+	HashTable<String, D3D12_ROOT_PARAMETER1> apiRootParameters(BindingBucketCount, Allocator);
+	Dxc::ReflectRootParameters(backendVertexShader->Reflection, &RootParameters, &apiRootParameters);
 	if (usesPixelShader)
 	{
-		CHECK(graphicsPipeline.GetStageCount() == 2);
-	}
-	else
-	{
-		CHECK(graphicsPipeline.GetStageCount() == 1);
+		Dxc::ReflectRootParameters(backendPixelShader->Reflection, &RootParameters, &apiRootParameters);
 	}
 
-	const D3D12Shader* vertex = &apiShaders[graphicsPipeline.GetShaderStage(ShaderStage::Vertex)];
-	const D3D12Shader* pixel = usesPixelShader ? &apiShaders[graphicsPipeline.GetShaderStage(ShaderStage::Pixel)] : nullptr;
-
-	Array<D3D12_INPUT_ELEMENT_DESC> inputElements(&GlobalAllocator::Get());
-	Dxc::ReflectInputElements(vertex->Reflection, inputElements);
-
-	HashTable<String, D3D12_ROOT_PARAMETER1> apiRootParameters(BindingBucketCount, &GlobalAllocator::Get());
-	Dxc::ReflectRootParameters(vertex->Reflection, &RootParameters, &apiRootParameters);
-	if (usesPixelShader)
-	{
-		Dxc::ReflectRootParameters(pixel->Reflection, &RootParameters, &apiRootParameters);
-	}
-
-	Array<D3D12_ROOT_PARAMETER1> rootParametersList(apiRootParameters.GetCount(), &GlobalAllocator::Get());
+	Array<D3D12_ROOT_PARAMETER1> rootParametersList(apiRootParameters.GetCount(), Allocator);
 	for (auto& [_, rootParameter] : apiRootParameters)
 	{
 		rootParametersList.Add(rootParameter);
@@ -67,16 +63,16 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device,
 	(void)rootSignatureResult;
 #endif
 	CHECK(serializedRootSignature);
-	CHECK_RESULT(device->CreateRootSignature(0, serializedRootSignature->GetBufferPointer(), serializedRootSignature->GetBufferSize(),
-											 IID_PPV_ARGS(&RootSignature)));
-	SET_D3D_NAME(RootSignature, name);
+	CHECK_RESULT(device->Native->CreateRootSignature(0, serializedRootSignature->GetBufferPointer(), serializedRootSignature->GetBufferSize(),
+													 IID_PPV_ARGS(&RootSignature)));
+	SET_D3D_NAME(RootSignature, Name);
 
 	const D3D12_RENDER_TARGET_BLEND_DESC defaultBlendDescription =
 	{
-		.BlendEnable = graphicsPipeline.IsAlphaBlended(),
+		.BlendEnable = AlphaBlend,
 		.LogicOpEnable = false,
-		.SrcBlend = graphicsPipeline.IsAlphaBlended() ? D3D12_BLEND_SRC_ALPHA : D3D12_BLEND_ONE,
-		.DestBlend = graphicsPipeline.IsAlphaBlended() ? D3D12_BLEND_INV_SRC_ALPHA : D3D12_BLEND_ZERO,
+		.SrcBlend = AlphaBlend ? D3D12_BLEND_SRC_ALPHA : D3D12_BLEND_ONE,
+		.DestBlend = AlphaBlend ? D3D12_BLEND_INV_SRC_ALPHA : D3D12_BLEND_ZERO,
 		.BlendOp = D3D12_BLEND_OP_ADD,
 		.SrcBlendAlpha = D3D12_BLEND_ONE,
 		.DestBlendAlpha = D3D12_BLEND_ZERO,
@@ -89,13 +85,13 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device,
 		.pRootSignature = RootSignature,
 		.VS =
 		{
-			.pShaderBytecode = vertex->Blob->GetBufferPointer(),
-			.BytecodeLength = vertex->Blob->GetBufferSize(),
+			.pShaderBytecode = backendVertexShader->Blob->GetBufferPointer(),
+			.BytecodeLength = backendVertexShader->Blob->GetBufferSize(),
 		},
 		.PS =
 		{
-			.pShaderBytecode = usesPixelShader ? pixel->Blob->GetBufferPointer() : nullptr,
-			.BytecodeLength = usesPixelShader ? pixel->Blob->GetBufferSize() : 0,
+			.pShaderBytecode = usesPixelShader ? backendPixelShader->Blob->GetBufferPointer() : nullptr,
+			.BytecodeLength = usesPixelShader ? backendPixelShader->Blob->GetBufferSize() : 0,
 		},
 		.StreamOutput = {},
 		.BlendState =
@@ -124,10 +120,10 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device,
 		},
 		.DepthStencilState =
 		{
-			.DepthEnable = IsDepthFormat(graphicsPipeline.GetDepthFormat()),
+			.DepthEnable = IsDepthFormat(DepthStencilFormat),
 			.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL,
 			.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
-			.StencilEnable = IsStencilFormat(graphicsPipeline.GetDepthFormat()),
+			.StencilEnable = IsStencilFormat(DepthStencilFormat),
 			.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK,
 			.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK,
 			.FrontFace =
@@ -155,14 +151,44 @@ D3D12GraphicsPipeline::D3D12GraphicsPipeline(ID3D12Device11* device,
 		.NumRenderTargets = usesPixelShader ? 1U : 0U,
 		.RTVFormats =
 		{
-			ToD3D12(graphicsPipeline.GetRenderTargetFormat()),
+			To(RenderTargetFormat),
 		},
-		.DSVFormat = ToD3D12(graphicsPipeline.GetDepthFormat()),
+		.DSVFormat = To(DepthStencilFormat),
 		.SampleDesc = DefaultSampleDescription,
 		.NodeMask = 0,
 		.CachedPSO = {},
 		.Flags = D3D12_PIPELINE_STATE_FLAG_NONE,
 	};
-	CHECK_RESULT(device->CreateGraphicsPipelineState(&graphicsPipelineStateDescription, IID_PPV_ARGS(&PipelineState)));
-	SET_D3D_NAME(PipelineState, name);
+	CHECK_RESULT(device->Native->CreateGraphicsPipelineState(&graphicsPipelineStateDescription, IID_PPV_ARGS(&PipelineState)));
+	SET_D3D_NAME(PipelineState, Name);
+}
+
+void GraphicsPipeline::SetConstantBuffer(ID3D12GraphicsCommandList10* commandList, StringView name, const Resource* buffer, usize offset)
+{
+	CHECK(RootParameters.Contains(name));
+	const usize rootParameterIndex = RootParameters[name].Index;
+
+	commandList->SetGraphicsRootConstantBufferView
+	(
+		static_cast<uint32>(rootParameterIndex),
+		D3D12_GPU_VIRTUAL_ADDRESS { buffer->Native->GetGPUVirtualAddress() + offset }
+	);
+}
+
+void GraphicsPipeline::SetConstants(ID3D12GraphicsCommandList10* commandList, const void* data)
+{
+	static const StringView name = "RootConstants"_view;
+	CHECK(RootParameters.Contains(name));
+
+	const Dxc::RootParameter& rootParameter = RootParameters[name];
+
+	commandList->SetGraphicsRoot32BitConstants
+	(
+		static_cast<uint32>(rootParameter.Index),
+		static_cast<uint32>(rootParameter.Size / sizeof(uint32)),
+		data,
+		0
+	);
+}
+
 }

@@ -1,10 +1,12 @@
 #pragma once
 
-#include "Common.hpp"
+#include "Forward.hpp"
+#include "HLSL.hpp"
 
-#include "Luft/Hash.hpp"
+namespace RHI
+{
 
-enum class SamplerAddress
+enum class SamplerAddress : uint8
 {
 	Wrap,
 	Mirror,
@@ -12,7 +14,7 @@ enum class SamplerAddress
 	Border,
 };
 
-enum class SamplerFilter
+enum class SamplerFilter : uint8
 {
 	Point,
 	Linear,
@@ -28,41 +30,25 @@ struct SamplerDescription
 	Float4 BorderColor;
 };
 
-class Sampler final : public RhiHandle<Sampler>
+class Sampler final : public SamplerDescription
 {
 public:
 	Sampler()
-		: RhiHandle(0)
-		, Description()
+		: SamplerDescription()
+		, Backend(nullptr)
 	{
 	}
 
-	Sampler(const RhiHandle& handle, SamplerDescription&& Description)
-		: RhiHandle(handle)
-		, Description(Move(Description))
+	Sampler(const SamplerDescription& description, RHI_BACKEND(Sampler)* backend)
+		: SamplerDescription(description)
+		, Backend(backend)
 	{
 	}
 
-	SamplerFilter GetMinificationFilter() const { return Description.MinificationFilter; }
-	SamplerFilter GetMagnificationFilter() const { return Description.MagnificationFilter; }
+	static Sampler Invalid() { return {}; }
+	bool IsValid() const { return Backend != nullptr; }
 
-	SamplerAddress GetHorizontalAddress() const { return Description.HorizontalAddress; }
-	SamplerAddress GetVerticalAddress() const { return Description.VerticalAddress; }
-
-	Float4 GetBorderColor() const { return Description.BorderColor; }
-
-private:
-	SamplerDescription Description;
+	RHI_BACKEND(Sampler)* Backend;
 };
 
-HASH_RHI_HANDLE(Sampler);
-
-class D3D12Sampler
-{
-public:
-	D3D12Sampler(ID3D12Device11* device, const Sampler& sampler, ViewHeap* samplerViewHeap);
-
-	uint32 GetHeapIndex() const { CHECK(HeapIndex); return HeapIndex; }
-
-	uint32 HeapIndex;
-};
+}

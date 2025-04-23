@@ -1,38 +1,36 @@
 #pragma once
 
-#include "Pipeline.hpp"
+#include "Shader.hpp"
+
+namespace RHI
+{
 
 struct ComputePipelineDescription
 {
 	Shader Stage;
+
+	StringView Name;
 };
 
-class ComputePipeline final : public Pipeline
+class ComputePipeline final : public ComputePipelineDescription
 {
 public:
 	ComputePipeline()
-		: Pipeline(RhiHandle(0))
-		, Description()
+		: ComputePipelineDescription()
+		, Backend(nullptr)
 	{
 	}
 
-	ComputePipeline(const RhiHandle& handle, ComputePipelineDescription&& Description)
-		: Pipeline(handle)
-		, Description(Move(Description))
+	ComputePipeline(const ComputePipelineDescription& description, RHI_BACKEND(ComputePipeline)* backend)
+		: ComputePipelineDescription(description)
+		, Backend(backend)
 	{
 	}
 
-	Shader GetStage() const { return Description.Stage; }
+	static ComputePipeline Invalid() { return {}; }
+	bool IsValid() const { return Backend != nullptr; }
 
-private:
-	ComputePipelineDescription Description;
+	RHI_BACKEND(ComputePipeline)* Backend;
 };
 
-class D3D12ComputePipeline : public D3D12Pipeline
-{
-public:
-	D3D12ComputePipeline(ID3D12Device11* device,
-						 const ComputePipeline& computePipeline,
-						 const HashTable<Shader, D3D12Shader>& apiShaders,
-						 StringView name);
-};
+}

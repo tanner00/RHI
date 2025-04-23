@@ -1,12 +1,11 @@
 #pragma once
 
-#include "Common.hpp"
-
-#include "GpuDevice.hpp"
+#include "Allocator.hpp"
+#include "Barrier.hpp"
+#include "BufferView.hpp"
+#include "ComputePipeline.hpp"
+#include "Device.hpp"
 #include "GraphicsContext.hpp"
-
-#include "Buffer.hpp"
 #include "GraphicsPipeline.hpp"
-#include "Sampler.hpp"
-#include "Shader.hpp"
-#include "Texture.hpp"
+#include "Resource.hpp"
+#include "TextureView.hpp"
