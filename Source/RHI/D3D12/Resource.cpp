@@ -67,8 +67,7 @@ static ID3D12Resource2* AllocateResource(const Device* device, const ResourceDes
 	CHECK_RESULT(device->Native->CreateCommittedResource3(heapProperties,
 														  D3D12_HEAP_FLAG_NONE,
 														  &nativeDescription,
-														  description.Type != ResourceType::Buffer ? To(description.InitialLayout)
-																								   : D3D12_BARRIER_LAYOUT_UNDEFINED,
+														  To(description.InitialLayout),
 														  clear,
 														  nullptr,
 														  0,
@@ -127,7 +126,7 @@ void Resource::WriteBuffer(const void* data, Array<UploadPair<ID3D12Resource2*, 
 		{
 			.Type = ResourceType::Buffer,
 			.Flags = ResourceFlags::Upload,
-			.InitialLayout = BarrierLayout::GraphicsQueueCopyDestination,
+			.InitialLayout = BarrierLayout::Undefined,
 			.Size = Size,
 			.Name = "Upload Buffer"_view,
 		});
@@ -157,14 +156,14 @@ void Resource::WriteTexture(const void* data, Array<UploadPair<ID3D12Resource2*,
 
 	uint64 totalSize = 0;
 
-	const D3D12_RESOURCE_DESC1 nativeDescription = To(*this);
-	Device->Native->GetCopyableFootprints1(&nativeDescription, 0, count, 0, layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
+	const D3D12_RESOURCE_DESC1 description = To(*this);
+	Device->Native->GetCopyableFootprints1(&description, 0, count, 0, layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
 
 	ID3D12Resource2* uploadResource = AllocateResource(Device,
 	{
 		.Type = ResourceType::Buffer,
 		.Flags = ResourceFlags::Upload,
-		.InitialLayout = BarrierLayout::GraphicsQueueCopyDestination,
+		.InitialLayout = BarrierLayout::Undefined,
 		.Size = totalSize,
 		.Name = "Upload Texture"_view,
 	});
