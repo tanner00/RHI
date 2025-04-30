@@ -30,8 +30,8 @@ public:
 	void SetPipeline(GraphicsPipeline* pipeline);
 	void SetPipeline(ComputePipeline* pipeline);
 
-	void SetVertexBuffer(const Resource* vertexBuffer, usize slot, usize offset, usize size, usize stride) const;
-	void SetIndexBuffer(const Resource* indexBuffer, usize offset, usize size, usize stride) const;
+	void SetVertexBuffer(usize slot, const SubBuffer& vertexBuffer) const;
+	void SetIndexBuffer(const SubBuffer& indexBuffer) const;
 
 	void SetConstantBuffer(StringView name, const Resource* buffer, usize offset = 0) const;
 
@@ -49,6 +49,14 @@ public:
 						BarrierPair<BarrierAccess> access,
 						BarrierPair<BarrierLayout> layout,
 						const Resource* texture) const;
+
+	void BuildAccelerationStructure(const SubBuffer& vertexBuffer,
+									const SubBuffer& indexBuffer,
+									const Resource* scratchResource,
+									const Resource* resultResource) const;
+	void BuildAccelerationStructure(const SubBuffer& instancesBuffer,
+									const Resource* scratchResource,
+									const Resource* resultResource) const;
 
 	void Execute(ID3D12CommandQueue* queue) const;
 

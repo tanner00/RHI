@@ -13,6 +13,7 @@ enum class ResourceType : uint8
 {
 	Buffer,
 	Texture2D,
+	AccelerationStructureInstances,
 };
 
 enum class ResourceFormat : uint8
@@ -34,13 +35,14 @@ enum class ResourceFormat : uint8
 
 enum class ResourceFlags : uint8
 {
-	None			= 0b000000,
-	Upload			= 0b000001,
-	Readback        = 0b000010,
-	UnorderedAccess	= 0b000100,
-	RenderTarget	= 0b001000,
-	DepthStencil	= 0b010000,
-	SwapChain       = 0b100000,
+	None					= 0b0000000,
+	Upload					= 0b0000001,
+	Readback				= 0b0000010,
+	UnorderedAccess			= 0b0000100,
+	RenderTarget			= 0b0001000,
+	DepthStencil			= 0b0010000,
+	SwapChain				= 0b0100000,
+	AccelerationStructure	= 0b1000000,
 };
 FLAGS_ENUM(ResourceFlags);
 

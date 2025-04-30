@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AccelerationStructure.hpp"
 #include "Allocator.hpp"
 #include "Barrier.hpp"
 #include "BufferView.hpp"

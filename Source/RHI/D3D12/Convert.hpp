@@ -1,8 +1,10 @@
 #pragma once
 
+#include "AccelerationStructure.hpp"
+#include "BufferView.hpp"
 #include "Resource.hpp"
-
-#include "RHI/View.hpp"
+#include "Sampler.hpp"
+#include "TextureView.hpp"
 
 namespace RHI::D3D12
 {
@@ -41,6 +43,8 @@ inline D3D12_RESOURCE_FLAGS To(ResourceFlags flags)
 		nativeFlags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	if (HasFlags(flags, ResourceFlags::DepthStencil))
 		nativeFlags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	if (HasFlags(flags, ResourceFlags::AccelerationStructure))
+		nativeFlags |= D3D12_RESOURCE_FLAG_RAYTRACING_ACCELERATION_STRUCTURE;
 	return nativeFlags;
 }
 
@@ -52,6 +56,8 @@ inline D3D12_RESOURCE_DIMENSION To(ResourceType type)
 		return D3D12_RESOURCE_DIMENSION_BUFFER;
 	case ResourceType::Texture2D:
 		return D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	case ResourceType::AccelerationStructureInstances:
+		return D3D12_RESOURCE_DIMENSION_BUFFER;
 	}
 	CHECK(false);
 	return D3D12_RESOURCE_DIMENSION_UNKNOWN;
@@ -156,6 +162,95 @@ inline D3D12_RESOURCE_DESC1 To(const ResourceDescription& description)
 		.Layout = description.Format == ResourceFormat::None ? D3D12_TEXTURE_LAYOUT_ROW_MAJOR : D3D12_TEXTURE_LAYOUT_UNKNOWN,
 		.Flags = To(description.Flags),
 		.SamplerFeedbackMipRegion = {},
+	};
+}
+
+inline D3D12_RAYTRACING_GEOMETRY_DESC To(const SubBuffer& vertexBuffer, const SubBuffer& indexBuffer)
+{
+	CHECK(vertexBuffer.Stride == sizeof(float[3]));
+	CHECK(indexBuffer.Stride == sizeof(uint16) || indexBuffer.Stride == sizeof(uint32));
+	CHECK(vertexBuffer.Size % vertexBuffer.Stride == 0 && indexBuffer.Size % indexBuffer.Stride == 0);
+
+	return D3D12_RAYTRACING_GEOMETRY_DESC
+	{
+		.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES,
+		.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE,
+		.Triangles = D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
+		{
+			.Transform3x4 = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
+			.IndexFormat = indexBuffer.Stride == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
+			.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT,
+			.IndexCount = static_cast<uint32>(indexBuffer.Size / indexBuffer.Stride),
+			.VertexCount = static_cast<uint32>(vertexBuffer.Size / vertexBuffer.Stride),
+			.IndexBuffer = indexBuffer.Resource.Backend->Native->GetGPUVirtualAddress() + indexBuffer.Offset,
+			.VertexBuffer = D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE
+			{
+				.StartAddress = vertexBuffer.Resource.Backend->Native->GetGPUVirtualAddress() + vertexBuffer.Offset,
+				.StrideInBytes = vertexBuffer.Stride,
+			},
+		},
+	};
+}
+
+inline D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS To(const D3D12_RAYTRACING_GEOMETRY_DESC& description)
+{
+	return D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS
+	{
+		.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_BOTTOM_LEVEL,
+		.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE,
+		.NumDescs = 1,
+		.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
+		.pGeometryDescs = &description,
+	};
+}
+
+inline D3D12_RAYTRACING_INSTANCE_DESC To(const AccelerationStructureInstance& instance)
+{
+	CHECK(instance.AccelerationStructureResource.IsValid());
+
+	const Matrix& transform = instance.Transform;
+
+	return D3D12_RAYTRACING_INSTANCE_DESC
+	{
+		.Transform =
+		{
+			{ transform.M00, transform.M01, transform.M02, transform.M03 },
+			{ transform.M10, transform.M11, transform.M12, transform.M13 },
+			{ transform.M20, transform.M21, transform.M22, transform.M23 },
+		},
+		.InstanceID = 0,
+		.InstanceMask = 0xFF,
+		.InstanceContributionToHitGroupIndex = 0,
+		.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE,
+		.AccelerationStructure = instance.AccelerationStructureResource.Backend->Native->GetGPUVirtualAddress(),
+	};
+}
+
+inline D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS To(const SubBuffer& instancesBuffer)
+{
+	CHECK(instancesBuffer.Stride == sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+
+	return D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS
+	{
+		.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
+		.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE,
+		.NumDescs = static_cast<uint32>(instancesBuffer.Size / instancesBuffer.Stride),
+		.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
+		.InstanceDescs = instancesBuffer.Resource.Backend->Native->GetGPUVirtualAddress(),
+	};
+}
+
+inline ToViewType<ViewType::ShaderResource>::Type To(const AccelerationStructureDescription& description)
+{
+	return
+	{
+		.Format = DXGI_FORMAT_UNKNOWN,
+		.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE,
+		.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+		.RaytracingAccelerationStructure = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_SRV
+		{
+			.Location = description.AccelerationStructureResource.Backend->Native->GetGPUVirtualAddress(),
+		},
 	};
 }
 

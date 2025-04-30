@@ -3,6 +3,7 @@
 #include "Barrier.hpp"
 #include "Forward.hpp"
 #include "HLSL.hpp"
+#include "Resource.hpp"
 
 #include "Luft/String.hpp"
 
@@ -14,6 +15,14 @@ struct BarrierPair
 {
 	T Before;
 	T After;
+};
+
+struct SubBuffer
+{
+	Resource Resource;
+	usize Size;
+	usize Stride;
+	usize Offset;
 };
 
 struct GraphicsContextDescription
@@ -44,8 +53,8 @@ public:
 	void SetPipeline(const GraphicsPipeline& pipeline);
 	void SetPipeline(const ComputePipeline& pipeline);
 
-	void SetVertexBuffer(const Resource& vertexBuffer, usize slot, usize offset, usize size, usize stride) const;
-	void SetIndexBuffer(const Resource& indexBuffer, usize offset, usize size, usize stride) const;
+	void SetVertexBuffer(usize slot, const SubBuffer& vertexBuffer) const;
+	void SetIndexBuffer(const SubBuffer& indexBuffer) const;
 
 	void SetConstantBuffer(StringView name, const Resource& buffer, usize offsetIndex = 0) const;
 	void SetRootConstants(const void* data) const;
@@ -62,6 +71,14 @@ public:
 						BarrierPair<BarrierAccess> access,
 						BarrierPair<BarrierLayout> layout,
 						const Resource& texture) const;
+
+	void BuildAccelerationStructure(const SubBuffer& vertexBuffer,
+									const SubBuffer& indexBuffer,
+									const Resource& scratchResource,
+									const Resource& resultResource) const;
+	void BuildAccelerationStructure(const SubBuffer& instances,
+									const Resource& scratchResource,
+									const Resource& resultResource) const;
 
 	double GetMostRecentGpuTime() const;
 

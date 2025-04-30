@@ -58,14 +58,14 @@ void GraphicsContext::SetPipeline(const ComputePipeline& pipeline)
 	Backend->SetPipeline(pipeline.Backend);
 }
 
-void GraphicsContext::SetVertexBuffer(const Resource& vertexBuffer, usize slot, usize offset, usize size, usize stride) const
+void GraphicsContext::SetVertexBuffer(usize slot, const SubBuffer& vertexBuffer) const
 {
-	Backend->SetVertexBuffer(vertexBuffer.Backend, slot, offset, size, stride);
+	Backend->SetVertexBuffer(slot, vertexBuffer);
 }
 
-void GraphicsContext::SetIndexBuffer(const Resource& indexBuffer, usize offset, usize size, usize stride) const
+void GraphicsContext::SetIndexBuffer(const SubBuffer& indexBuffer) const
 {
-	Backend->SetIndexBuffer(indexBuffer.Backend, offset, size, stride);
+	Backend->SetIndexBuffer(indexBuffer);
 }
 
 void GraphicsContext::SetConstantBuffer(StringView name, const Resource& buffer, usize offsetIndex) const
@@ -114,6 +114,21 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage,
 									 const Resource& texture) const
 {
 	Backend->TextureBarrier(stage, access, layout, texture.Backend);
+}
+
+void GraphicsContext::BuildAccelerationStructure(const SubBuffer& vertexBuffer,
+												 const SubBuffer& indexBuffer,
+												 const Resource& scratchResource,
+												 const Resource& resultResource) const
+{
+	return Backend->BuildAccelerationStructure(vertexBuffer, indexBuffer, scratchResource.Backend, resultResource.Backend);
+}
+
+void GraphicsContext::BuildAccelerationStructure(const SubBuffer& instances,
+												 const Resource& scratchResource,
+												 const Resource& resultResource) const
+{
+	return Backend->BuildAccelerationStructure(instances, scratchResource.Backend, resultResource.Backend);
 }
 
 double GraphicsContext::GetMostRecentGpuTime() const

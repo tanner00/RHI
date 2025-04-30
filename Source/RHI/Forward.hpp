@@ -8,13 +8,25 @@
 
 namespace RHI
 {
+class AccelerationStructure;
+struct AccelerationStructureDescription;
+struct AccelerationStructureInstance;
 class BufferView;
+struct BufferViewDescription;
 class ComputePipeline;
+struct ComputePipelineDescription;
 class Device;
 class GraphicsContext;
+struct GraphicsContextDescription;
 class GraphicsPipeline;
+struct GraphicsPipelineDescription;
 class Resource;
+struct ResourceDescription;
 class Sampler;
+struct SamplerDescription;
 class Shader;
+struct ShaderDescription;
+struct SubBuffer;
 class TextureView;
+struct TextureViewDescription;
 }

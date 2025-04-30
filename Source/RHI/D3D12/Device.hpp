@@ -16,6 +16,7 @@ public:
 	explicit Device(const Platform::Window* window);
 	~Device();
 
+	AccelerationStructure* Create(const AccelerationStructureDescription& description);
 	BufferView* Create(const BufferViewDescription& description);
 	ComputePipeline* Create(const ComputePipelineDescription& description);
 	GraphicsContext* Create(const GraphicsContextDescription& description);
@@ -25,6 +26,7 @@ public:
 	Shader* Create(const ShaderDescription& description);
 	TextureView* Create(const TextureViewDescription& description);
 
+	void Destroy(AccelerationStructure* accelerationStructure) const;
 	void Destroy(BufferView* bufferView) const;
 	void Destroy(ComputePipeline* computePipeline) const;
 	void Destroy(GraphicsContext* graphicsContext) const;
@@ -45,6 +47,10 @@ public:
 	void ResizeSwapChain(uint32 width, uint32 height);
 
 	usize GetFrameIndex() const;
+
+	AccelerationStructureSize GetAccelerationStructureSize(const SubBuffer& vertexBuffer, const SubBuffer& indexBuffer) const;
+	AccelerationStructureSize GetAccelerationStructureSize(const SubBuffer& instancesBuffer) const;
+	usize GetAccelerationStructureInstanceSize();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCpu(usize index, ViewType type) const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGpu(usize index, ViewType type) const;

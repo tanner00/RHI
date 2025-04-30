@@ -108,6 +108,9 @@ void Resource::Write(const void* data, Array<UploadPair<ID3D12Resource2*, Resour
 	case ResourceType::Texture2D:
 		WriteTexture(data, pendingUploads);
 		break;
+	case ResourceType::AccelerationStructureInstances:
+		WriteAccelerationStructureInstances(data);
+		break;
 	default:
 		CHECK(false);
 	}
@@ -195,47 +198,84 @@ void Resource::WriteTexture(const void* data, Array<UploadPair<ID3D12Resource2*,
 	pendingUploads->Add({ uploadResource, this });
 }
 
+void Resource::WriteAccelerationStructureInstances(const void* data)
+{
+	CHECK(HasFlags(Flags, ResourceFlags::Upload));
+
+	ID3D12Resource2* uploadResource = Native;
+
+	const usize stride = Device->GetAccelerationStructureInstanceSize();
+	const usize count = Size / stride;
+	CHECK((Size % stride) == 0);
+
+	void* mapped = nullptr;
+	CHECK_RESULT(uploadResource->Map(0, &ReadNothing, &mapped));
+	for (usize instanceIndex = 0; instanceIndex < count; ++instanceIndex)
+	{
+		const AccelerationStructureInstance* instances = static_cast<const AccelerationStructureInstance*>(data);
+		const AccelerationStructureInstance& instance = instances[instanceIndex];
+
+		const D3D12_RAYTRACING_INSTANCE_DESC instanceDescription = To(instance);
+
+		Platform::MemoryCopy(static_cast<uint8*>(mapped) + instanceIndex * stride, &instanceDescription, stride);
+	}
+	uploadResource->Unmap(0, WriteEverything);
+}
+
 void Resource::Upload(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const
 {
-	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(Allocator);
-
 	switch (Type)
 	{
 	case ResourceType::Buffer:
-	{
-		uploadCommandList->CopyResource(Native, source);
+		UploadBuffer(uploadCommandList, source);
 		break;
-	}
 	case ResourceType::Texture2D:
-	{
-		const uint16 count = MipMapCount != 0 ? MipMapCount : 1;
-		layouts.GrowToLengthUninitialized(count);
-
-		const D3D12_RESOURCE_DESC1 description = To(*this);
-		Device->Native->GetCopyableFootprints1(&description, 0, count, 0, layouts.GetData(), nullptr, nullptr, nullptr);
-
-		for (usize subresourceIndex = 0; subresourceIndex < count; ++subresourceIndex)
-		{
-			const D3D12_TEXTURE_COPY_LOCATION sourceLocation = D3D12_TEXTURE_COPY_LOCATION
-			{
-				.pResource = source,
-				.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
-				.PlacedFootprint = layouts[subresourceIndex],
-			};
-			const D3D12_TEXTURE_COPY_LOCATION destinationLocation = D3D12_TEXTURE_COPY_LOCATION
-			{
-				.pResource = Native,
-				.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
-				.SubresourceIndex = static_cast<uint32>(subresourceIndex),
-			};
-			uploadCommandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
-		}
+		UploadTexture(uploadCommandList, source);
 		break;
-	}
+	case ResourceType::AccelerationStructureInstances:
+		UploadAccelerationStructureInstances(uploadCommandList, source);
+		break;
 	default:
 		CHECK(false);
-		break;
 	}
+}
+
+void Resource::UploadBuffer(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const
+{
+	uploadCommandList->CopyResource(Native, source);
+}
+
+void Resource::UploadTexture(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const
+{
+	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(Allocator);
+
+	const uint16 count = MipMapCount != 0 ? MipMapCount : 1;
+	layouts.GrowToLengthUninitialized(count);
+
+	const D3D12_RESOURCE_DESC1 description = To(*this);
+	Device->Native->GetCopyableFootprints1(&description, 0, count, 0, layouts.GetData(), nullptr, nullptr, nullptr);
+
+	for (usize subresourceIndex = 0; subresourceIndex < count; ++subresourceIndex)
+	{
+		const D3D12_TEXTURE_COPY_LOCATION sourceLocation = D3D12_TEXTURE_COPY_LOCATION
+		{
+			.pResource = source,
+			.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
+			.PlacedFootprint = layouts[subresourceIndex],
+		};
+		const D3D12_TEXTURE_COPY_LOCATION destinationLocation = D3D12_TEXTURE_COPY_LOCATION
+		{
+			.pResource = Native,
+			.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
+			.SubresourceIndex = static_cast<uint32>(subresourceIndex),
+		};
+		uploadCommandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
+	}
+}
+
+void Resource::UploadAccelerationStructureInstances(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const
+{
+	uploadCommandList->CopyResource(Native, source);
 }
 
 }

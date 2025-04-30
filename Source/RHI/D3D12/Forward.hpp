@@ -20,6 +20,7 @@ struct IUnknown;
 
 namespace RHI::D3D12
 {
+class AccelerationStructure;
 class BufferView;
 class ComputePipeline;
 class Device;

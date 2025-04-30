@@ -201,25 +201,25 @@ void GraphicsContext::SetPipeline(ComputePipeline* pipeline)
 	CurrentPipeline = pipeline;
 }
 
-void GraphicsContext::SetVertexBuffer(const Resource* vertexBuffer, usize slot, usize offset, usize size, usize stride) const
+void GraphicsContext::SetVertexBuffer(usize slot, const SubBuffer& vertexBuffer) const
 {
 	const D3D12_VERTEX_BUFFER_VIEW view =
 	{
-		.BufferLocation = vertexBuffer->Native->GetGPUVirtualAddress() + offset,
-		.SizeInBytes = static_cast<uint32>(size),
-		.StrideInBytes = static_cast<uint32>(stride),
+		.BufferLocation = vertexBuffer.Resource.Backend->Native->GetGPUVirtualAddress() + vertexBuffer.Offset,
+		.SizeInBytes = static_cast<uint32>(vertexBuffer.Size),
+		.StrideInBytes = static_cast<uint32>(vertexBuffer.Stride),
 	};
 	CommandList->IASetVertexBuffers(static_cast<uint32>(slot), 1, &view);
 }
 
-void GraphicsContext::SetIndexBuffer(const Resource* indexBuffer, usize offset, usize size, usize stride) const
+void GraphicsContext::SetIndexBuffer(const SubBuffer& indexBuffer) const
 {
-	CHECK(stride == 2 || stride == 4);
+	CHECK(indexBuffer.Stride == sizeof(uint16) || indexBuffer.Stride == sizeof(uint32));
 	const D3D12_INDEX_BUFFER_VIEW view =
 	{
-		.BufferLocation = indexBuffer->Native->GetGPUVirtualAddress() + offset,
-		.SizeInBytes = static_cast<uint32>(size),
-		.Format = stride == 2 ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
+		.BufferLocation = indexBuffer.Resource.Backend->Native->GetGPUVirtualAddress() + indexBuffer.Offset,
+		.SizeInBytes = static_cast<uint32>(indexBuffer.Size),
+		.Format = indexBuffer.Stride == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
 	};
 	CommandList->IASetIndexBuffer(&view);
 }
@@ -329,6 +329,42 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage,
 		.pTextureBarriers = &textureBarrier,
 	};
 	CommandList->Barrier(1, &barrierGroup);
+}
+
+void GraphicsContext::BuildAccelerationStructure(const SubBuffer& vertexBuffer,
+												 const SubBuffer& indexBuffer,
+												 const Resource* scratchResource,
+												 const Resource* resultResource) const
+{
+	CHECK((resultResource->Native->GetGPUVirtualAddress() % D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT) == 0);
+
+	const D3D12_RAYTRACING_GEOMETRY_DESC geometryDescription = To(vertexBuffer, indexBuffer);
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = To(geometryDescription);
+
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC description = D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC
+	{
+		.DestAccelerationStructureData = resultResource->Native->GetGPUVirtualAddress(),
+		.Inputs = inputs,
+		.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
+		.ScratchAccelerationStructureData = scratchResource->Native->GetGPUVirtualAddress(),
+	};
+	CommandList->BuildRaytracingAccelerationStructure(&description, 0, NoPostBuildInfo);
+}
+
+void GraphicsContext::BuildAccelerationStructure(const SubBuffer& instancesBuffer,
+												 const Resource* scratchResource,
+												 const Resource* resultResource) const
+{
+	CHECK((resultResource->Native->GetGPUVirtualAddress() % D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT) == 0);
+
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC description =
+	{
+		.DestAccelerationStructureData = resultResource->Native->GetGPUVirtualAddress(),
+		.Inputs = To(instancesBuffer),
+		.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
+		.ScratchAccelerationStructureData = scratchResource->Native->GetGPUVirtualAddress(),
+	};
+	CommandList->BuildRaytracingAccelerationStructure(&description, 0, NoPostBuildInfo);
 }
 
 void GraphicsContext::Execute(ID3D12CommandQueue* queue) const

@@ -1,4 +1,5 @@
 #include "Device.hpp"
+#include "AccelerationStructure.hpp"
 #include "Base.hpp"
 #include "BufferView.hpp"
 #include "ComputePipeline.hpp"
@@ -199,6 +200,11 @@ Device::~Device()
 #endif
 }
 
+AccelerationStructure* Device::Create(const AccelerationStructureDescription& description)
+{
+	return Allocator->Create<AccelerationStructure>(description, this);
+}
+
 BufferView* Device::Create(const BufferViewDescription& description)
 {
 	return Allocator->Create<BufferView>(description, this);
@@ -237,6 +243,11 @@ Shader* Device::Create(const ShaderDescription& description)
 TextureView* Device::Create(const TextureViewDescription& description)
 {
 	return Allocator->Create<TextureView>(description, this);
+}
+
+void Device::Destroy(AccelerationStructure* accelerationStructure) const
+{
+	Allocator->Destroy(accelerationStructure);
 }
 
 void Device::Destroy(BufferView* bufferView) const
@@ -349,6 +360,40 @@ void Device::ResizeSwapChain(uint32 width, uint32 height)
 usize Device::GetFrameIndex() const
 {
 	return SwapChain->GetCurrentBackBufferIndex();
+}
+
+AccelerationStructureSize Device::GetAccelerationStructureSize(const SubBuffer& vertexBuffer, const SubBuffer& indexBuffer) const
+{
+	const D3D12_RAYTRACING_GEOMETRY_DESC geometryDescription = To(vertexBuffer, indexBuffer);
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = To(geometryDescription);
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildSizes;
+	Native->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildSizes);
+
+	return AccelerationStructureSize
+	{
+		.ResultSize = preBuildSizes.ResultDataMaxSizeInBytes,
+		.ScratchSize = preBuildSizes.ScratchDataSizeInBytes,
+	};
+}
+
+AccelerationStructureSize Device::GetAccelerationStructureSize(const SubBuffer& instancesBuffer) const
+{
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = To(instancesBuffer);
+
+	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildSizes;
+	Native->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildSizes);
+
+	return AccelerationStructureSize
+	{
+		.ResultSize = preBuildSizes.ResultDataMaxSizeInBytes,
+		.ScratchSize = preBuildSizes.ScratchDataSizeInBytes,
+	};
+}
+
+usize Device::GetAccelerationStructureInstanceSize()
+{
+	return sizeof(D3D12_RAYTRACING_INSTANCE_DESC);
 }
 
 D3D12_CPU_DESCRIPTOR_HANDLE Device::GetCpu(usize index, ViewType type) const

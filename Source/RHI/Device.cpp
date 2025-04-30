@@ -2,6 +2,7 @@
 #include "Allocator.hpp"
 
 #if RHI_D3D12
+#include "D3D12/AccelerationStructure.hpp"
 #include "D3D12/BufferView.hpp"
 #include "D3D12/ComputePipeline.hpp"
 #include "D3D12/Device.hpp"
@@ -24,6 +25,11 @@ Device::~Device()
 {
 	Allocator->Destroy(Backend);
 	Backend = nullptr;
+}
+
+AccelerationStructure Device::Create(const AccelerationStructureDescription& description)
+{
+	return AccelerationStructure { description, Backend->Create(description) };
 }
 
 BufferView Device::Create(const BufferViewDescription& description)
@@ -64,6 +70,12 @@ Shader Device::Create(const ShaderDescription& description)
 TextureView Device::Create(const TextureViewDescription& description)
 {
 	return TextureView { description, Backend->Create(description) };
+}
+
+void Device::Destroy(AccelerationStructure* accelerationStructure) const
+{
+	Backend->Destroy(accelerationStructure->Backend);
+	accelerationStructure->Backend = nullptr;
 }
 
 void Device::Destroy(BufferView* bufferView) const
@@ -114,19 +126,24 @@ void Device::Destroy(TextureView* textureView) const
 	textureView->Backend = nullptr;
 }
 
+uint32 Device::Get(const AccelerationStructure& accelerationStructure)
+{
+	return accelerationStructure.Backend->HeapIndex;
+}
+
 uint32 Device::Get(const BufferView& buffer) const
 {
 	return buffer.Backend->HeapIndex;
 }
 
-uint32 Device::Get(const TextureView& texture) const
-{
-	return texture.Backend->HeapIndex;
-}
-
 uint32 Device::Get(const Sampler& sampler) const
 {
 	return sampler.Backend->HeapIndex;
+}
+
+uint32 Device::Get(const TextureView& texture) const
+{
+	return texture.Backend->HeapIndex;
 }
 
 void Device::Write(const Resource* resource, const void* data)
@@ -162,6 +179,21 @@ void Device::ResizeSwapChain(uint32 width, uint32 height)
 usize Device::GetFrameIndex() const
 {
 	return Backend->GetFrameIndex();
+}
+
+AccelerationStructureSize Device::GetAccelerationStructureSize(const SubBuffer& vertexBuffer, const SubBuffer& indexBuffer) const
+{
+	return Backend->GetAccelerationStructureSize(vertexBuffer, indexBuffer);
+}
+
+AccelerationStructureSize Device::GetAccelerationStructureSize(const SubBuffer& instancesBuffer) const
+{
+	return Backend->GetAccelerationStructureSize(instancesBuffer);
+}
+
+usize Device::GetAccelerationStructureInstanceSize()
+{
+	return Backend->GetAccelerationStructureInstanceSize();
 }
 
 }
