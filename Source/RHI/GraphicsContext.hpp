@@ -64,11 +64,10 @@ public:
 						BarrierPair<BarrierLayout> layout,
 						const Resource& texture) const;
 
-	void BuildAccelerationStructure(const SubBuffer& vertexBuffer,
-									const SubBuffer& indexBuffer,
+	void BuildAccelerationStructure(const AccelerationStructureGeometry& geometry,
 									const Resource& scratchResource,
 									const Resource& resultResource) const;
-	void BuildAccelerationStructure(const SubBuffer& instances,
+	void BuildAccelerationStructure(const Buffer& instances,
 									const Resource& scratchResource,
 									const Resource& resultResource) const;
 

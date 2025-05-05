@@ -362,9 +362,9 @@ usize Device::GetFrameIndex() const
 	return SwapChain->GetCurrentBackBufferIndex();
 }
 
-AccelerationStructureSize Device::GetAccelerationStructureSize(const SubBuffer& vertexBuffer, const SubBuffer& indexBuffer) const
+AccelerationStructureSize Device::GetAccelerationStructureSize(const AccelerationStructureGeometry& geometry) const
 {
-	const D3D12_RAYTRACING_GEOMETRY_DESC geometryDescription = To(vertexBuffer, indexBuffer);
+	const D3D12_RAYTRACING_GEOMETRY_DESC geometryDescription = To(geometry);
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = To(geometryDescription);
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildSizes;
@@ -377,9 +377,9 @@ AccelerationStructureSize Device::GetAccelerationStructureSize(const SubBuffer& 
 	};
 }
 
-AccelerationStructureSize Device::GetAccelerationStructureSize(const SubBuffer& instancesBuffer) const
+AccelerationStructureSize Device::GetAccelerationStructureSize(const Buffer& instances) const
 {
-	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = To(instancesBuffer);
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = To(instances);
 
 	D3D12_RAYTRACING_ACCELERATION_STRUCTURE_PREBUILD_INFO preBuildSizes;
 	Native->GetRaytracingAccelerationStructurePrebuildInfo(&inputs, &preBuildSizes);

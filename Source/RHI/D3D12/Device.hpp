@@ -48,8 +48,8 @@ public:
 
 	usize GetFrameIndex() const;
 
-	AccelerationStructureSize GetAccelerationStructureSize(const SubBuffer& vertexBuffer, const SubBuffer& indexBuffer) const;
-	AccelerationStructureSize GetAccelerationStructureSize(const SubBuffer& instancesBuffer) const;
+	AccelerationStructureSize GetAccelerationStructureSize(const AccelerationStructureGeometry& geometry) const;
+	AccelerationStructureSize GetAccelerationStructureSize(const Buffer& instances) const;
 	usize GetAccelerationStructureInstanceSize();
 
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCpu(usize index, ViewType type) const;

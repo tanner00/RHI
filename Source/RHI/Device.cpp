@@ -181,14 +181,14 @@ usize Device::GetFrameIndex() const
 	return Backend->GetFrameIndex();
 }
 
-AccelerationStructureSize Device::GetAccelerationStructureSize(const SubBuffer& vertexBuffer, const SubBuffer& indexBuffer) const
+AccelerationStructureSize Device::GetAccelerationStructureSize(const AccelerationStructureGeometry& geometry) const
 {
-	return Backend->GetAccelerationStructureSize(vertexBuffer, indexBuffer);
+	return Backend->GetAccelerationStructureSize(geometry);
 }
 
-AccelerationStructureSize Device::GetAccelerationStructureSize(const SubBuffer& instancesBuffer) const
+AccelerationStructureSize Device::GetAccelerationStructureSize(const Buffer& instances) const
 {
-	return Backend->GetAccelerationStructureSize(instancesBuffer);
+	return Backend->GetAccelerationStructureSize(instances);
 }
 
 usize Device::GetAccelerationStructureInstanceSize()

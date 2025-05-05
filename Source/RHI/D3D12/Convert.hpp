@@ -165,28 +165,28 @@ inline D3D12_RESOURCE_DESC1 To(const ResourceDescription& description)
 	};
 }
 
-inline D3D12_RAYTRACING_GEOMETRY_DESC To(const SubBuffer& vertexBuffer, const SubBuffer& indexBuffer)
+inline D3D12_RAYTRACING_GEOMETRY_DESC To(const AccelerationStructureGeometry& geometry)
 {
-	CHECK(vertexBuffer.Stride == sizeof(float[3]));
-	CHECK(indexBuffer.Stride == sizeof(uint16) || indexBuffer.Stride == sizeof(uint32));
-	CHECK(vertexBuffer.Size % vertexBuffer.Stride == 0 && indexBuffer.Size % indexBuffer.Stride == 0);
+	CHECK(geometry.VertexBuffer.Stride == sizeof(float[3]));
+	CHECK(geometry.IndexBuffer.Stride == sizeof(uint16) || geometry.IndexBuffer.Stride == sizeof(uint32));
+	CHECK(geometry.VertexBuffer.Size % geometry.VertexBuffer.Stride == 0 && geometry.IndexBuffer.Size % geometry.IndexBuffer.Stride == 0);
 
 	return D3D12_RAYTRACING_GEOMETRY_DESC
 	{
 		.Type = D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES,
-		.Flags = D3D12_RAYTRACING_GEOMETRY_FLAG_NONE,
+		.Flags = geometry.Translucent ? D3D12_RAYTRACING_GEOMETRY_FLAG_NONE : D3D12_RAYTRACING_GEOMETRY_FLAG_OPAQUE,
 		.Triangles = D3D12_RAYTRACING_GEOMETRY_TRIANGLES_DESC
 		{
 			.Transform3x4 = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
-			.IndexFormat = indexBuffer.Stride == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
+			.IndexFormat = geometry.IndexBuffer.Stride == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
 			.VertexFormat = DXGI_FORMAT_R32G32B32_FLOAT,
-			.IndexCount = static_cast<uint32>(indexBuffer.Size / indexBuffer.Stride),
-			.VertexCount = static_cast<uint32>(vertexBuffer.Size / vertexBuffer.Stride),
-			.IndexBuffer = indexBuffer.Resource.Backend->Native->GetGPUVirtualAddress() + indexBuffer.Offset,
+			.IndexCount = static_cast<uint32>(geometry.IndexBuffer.Size / geometry.IndexBuffer.Stride),
+			.VertexCount = static_cast<uint32>(geometry.VertexBuffer.Size / geometry.VertexBuffer.Stride),
+			.IndexBuffer = geometry.IndexBuffer.Resource.Backend->Native->GetGPUVirtualAddress() + geometry.IndexBuffer.Offset,
 			.VertexBuffer = D3D12_GPU_VIRTUAL_ADDRESS_AND_STRIDE
 			{
-				.StartAddress = vertexBuffer.Resource.Backend->Native->GetGPUVirtualAddress() + vertexBuffer.Offset,
-				.StrideInBytes = vertexBuffer.Stride,
+				.StartAddress = geometry.VertexBuffer.Resource.Backend->Native->GetGPUVirtualAddress() + geometry.VertexBuffer.Offset,
+				.StrideInBytes = geometry.VertexBuffer.Stride,
 			},
 		},
 	};
@@ -207,6 +207,7 @@ inline D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS To(const D3D12_RAYTR
 inline D3D12_RAYTRACING_INSTANCE_DESC To(const AccelerationStructureInstance& instance)
 {
 	CHECK(instance.AccelerationStructureResource.IsValid());
+	CHECK(instance.ID < 0xFFFFFF);
 
 	const Matrix& transform = instance.Transform;
 
@@ -218,7 +219,7 @@ inline D3D12_RAYTRACING_INSTANCE_DESC To(const AccelerationStructureInstance& in
 			{ transform.M10, transform.M11, transform.M12, transform.M13 },
 			{ transform.M20, transform.M21, transform.M22, transform.M23 },
 		},
-		.InstanceID = 0,
+		.InstanceID = instance.ID,
 		.InstanceMask = 0xFF,
 		.InstanceContributionToHitGroupIndex = 0,
 		.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_TRIANGLE_FRONT_COUNTERCLOCKWISE,
@@ -226,17 +227,17 @@ inline D3D12_RAYTRACING_INSTANCE_DESC To(const AccelerationStructureInstance& in
 	};
 }
 
-inline D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS To(const SubBuffer& instancesBuffer)
+inline D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS To(const Buffer& instances)
 {
-	CHECK(instancesBuffer.Stride == sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
+	CHECK(instances.Stride == sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
 
 	return D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS
 	{
 		.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL,
 		.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_NONE,
-		.NumDescs = static_cast<uint32>(instancesBuffer.Size / instancesBuffer.Stride),
+		.NumDescs = static_cast<uint32>(instances.Size / sizeof(D3D12_RAYTRACING_INSTANCE_DESC)),
 		.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY,
-		.InstanceDescs = instancesBuffer.Resource.Backend->Native->GetGPUVirtualAddress(),
+		.InstanceDescs = instances.Resource.Backend->Native->GetGPUVirtualAddress(),
 	};
 }
 

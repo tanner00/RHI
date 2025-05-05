@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Buffer.hpp"
 #include "Resource.hpp"
 
 #include "Luft/Math.hpp"
@@ -7,16 +8,24 @@
 namespace RHI
 {
 
-struct AccelerationStructureSize
+struct AccelerationStructureGeometry
 {
-	usize ResultSize;
-	usize ScratchSize;
+	SubBuffer VertexBuffer;
+	SubBuffer IndexBuffer;
+	bool Translucent;
 };
 
 struct AccelerationStructureInstance
 {
+	uint32 ID;
 	Matrix Transform;
 	Resource AccelerationStructureResource;
+};
+
+struct AccelerationStructureSize
+{
+	usize ResultSize;
+	usize ScratchSize;
 };
 
 struct AccelerationStructureDescription

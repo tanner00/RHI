@@ -9,8 +9,11 @@
 namespace RHI
 {
 class AccelerationStructure;
+struct AccelerationStructureGeometry;
 struct AccelerationStructureDescription;
 struct AccelerationStructureInstance;
+struct AccelerationStructureSize;
+struct Buffer;
 class BufferView;
 struct BufferViewDescription;
 class ComputePipeline;

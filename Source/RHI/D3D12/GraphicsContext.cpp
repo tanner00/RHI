@@ -331,14 +331,13 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage,
 	CommandList->Barrier(1, &barrierGroup);
 }
 
-void GraphicsContext::BuildAccelerationStructure(const SubBuffer& vertexBuffer,
-												 const SubBuffer& indexBuffer,
+void GraphicsContext::BuildAccelerationStructure(const AccelerationStructureGeometry& geometry,
 												 const Resource* scratchResource,
 												 const Resource* resultResource) const
 {
 	CHECK((resultResource->Native->GetGPUVirtualAddress() % D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT) == 0);
 
-	const D3D12_RAYTRACING_GEOMETRY_DESC geometryDescription = To(vertexBuffer, indexBuffer);
+	const D3D12_RAYTRACING_GEOMETRY_DESC geometryDescription = To(geometry);
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = To(geometryDescription);
 
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC description = D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC
@@ -351,7 +350,7 @@ void GraphicsContext::BuildAccelerationStructure(const SubBuffer& vertexBuffer,
 	CommandList->BuildRaytracingAccelerationStructure(&description, 0, NoPostBuildInfo);
 }
 
-void GraphicsContext::BuildAccelerationStructure(const SubBuffer& instancesBuffer,
+void GraphicsContext::BuildAccelerationStructure(const Buffer& instances,
 												 const Resource* scratchResource,
 												 const Resource* resultResource) const
 {
@@ -360,7 +359,7 @@ void GraphicsContext::BuildAccelerationStructure(const SubBuffer& instancesBuffe
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC description =
 	{
 		.DestAccelerationStructureData = resultResource->Native->GetGPUVirtualAddress(),
-		.Inputs = To(instancesBuffer),
+		.Inputs = To(instances),
 		.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
 		.ScratchAccelerationStructureData = scratchResource->Native->GetGPUVirtualAddress(),
 	};

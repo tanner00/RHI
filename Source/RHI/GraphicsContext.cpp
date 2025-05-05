@@ -116,15 +116,14 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage,
 	Backend->TextureBarrier(stage, access, layout, texture.Backend);
 }
 
-void GraphicsContext::BuildAccelerationStructure(const SubBuffer& vertexBuffer,
-												 const SubBuffer& indexBuffer,
+void GraphicsContext::BuildAccelerationStructure(const AccelerationStructureGeometry& geometry,
 												 const Resource& scratchResource,
 												 const Resource& resultResource) const
 {
-	return Backend->BuildAccelerationStructure(vertexBuffer, indexBuffer, scratchResource.Backend, resultResource.Backend);
+	return Backend->BuildAccelerationStructure(geometry, scratchResource.Backend, resultResource.Backend);
 }
 
-void GraphicsContext::BuildAccelerationStructure(const SubBuffer& instances,
+void GraphicsContext::BuildAccelerationStructure(const Buffer& instances,
 												 const Resource& scratchResource,
 												 const Resource& resultResource) const
 {
