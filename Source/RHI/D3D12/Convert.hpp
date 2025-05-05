@@ -270,17 +270,23 @@ typename ToViewType<V>::Type To(const BufferViewDescription& description);
 template<>
 inline ToViewType<ViewType::ShaderResource>::Type To<ViewType::ShaderResource>(const BufferViewDescription& description)
 {
+	const bool byteAddressBuffer = description.Stride == 0;
+
+	const DXGI_FORMAT format = byteAddressBuffer ? DXGI_FORMAT_R32_TYPELESS : DXGI_FORMAT_UNKNOWN;
+	const usize count = byteAddressBuffer ? (description.Size / 4) : (description.Size / description.Stride);
+	const D3D12_BUFFER_SRV_FLAGS flags = byteAddressBuffer ? D3D12_BUFFER_SRV_FLAG_RAW : D3D12_BUFFER_SRV_FLAG_NONE;
+
 	return
 	{
-		.Format = DXGI_FORMAT_UNKNOWN,
+		.Format = format,
 		.ViewDimension = D3D12_SRV_DIMENSION_BUFFER,
 		.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
 		.Buffer = D3D12_BUFFER_SRV
 		{
 			.FirstElement = 0,
-			.NumElements = description.Stride ? static_cast<uint32>(description.Size / description.Stride) : 1,
-			.StructureByteStride = static_cast<uint32>(description.Stride ? description.Stride : description.Size),
-			.Flags = D3D12_BUFFER_SRV_FLAG_NONE,
+			.NumElements = static_cast<uint32>(count),
+			.StructureByteStride = static_cast<uint32>(description.Stride),
+			.Flags = flags,
 		},
 	};
 }
