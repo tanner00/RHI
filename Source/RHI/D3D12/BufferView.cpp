@@ -10,8 +10,8 @@ BufferView::BufferView(const BufferViewDescription& description, D3D12::Device* 
 	: BufferViewDescription(description)
 	, Device(device)
 {
-	CHECK(Resource.IsValid());
-	const D3D12::Resource* backendResource = Resource.Backend;
+	CHECK(Buffer.Resource.IsValid());
+	const D3D12::Resource* backendResource = Buffer.Resource.Backend;
 
 	switch (Type)
 	{

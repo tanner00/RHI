@@ -1,7 +1,7 @@
 #pragma once
 
+#include "Buffer.hpp"
 #include "Forward.hpp"
-#include "Resource.hpp"
 #include "View.hpp"
 
 namespace RHI
@@ -9,11 +9,8 @@ namespace RHI
 
 struct BufferViewDescription
 {
-	Resource Resource;
 	ViewType Type;
-
-	usize Size;
-	usize Stride;
+	Buffer Buffer;
 };
 
 class BufferView final : public BufferViewDescription

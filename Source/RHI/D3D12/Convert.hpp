@@ -260,7 +260,7 @@ inline ToViewType<ViewType::ConstantBuffer>::Type To(const BufferViewDescription
 	return
 	{
 		.BufferLocation = resource->Native->GetGPUVirtualAddress(),
-		.SizeInBytes = static_cast<uint32>(description.Size),
+		.SizeInBytes = static_cast<uint32>(description.Buffer.Size),
 	};
 }
 
@@ -270,10 +270,10 @@ typename ToViewType<V>::Type To(const BufferViewDescription& description);
 template<>
 inline ToViewType<ViewType::ShaderResource>::Type To<ViewType::ShaderResource>(const BufferViewDescription& description)
 {
-	const bool byteAddressBuffer = description.Stride == 0;
+	const bool byteAddressBuffer = description.Buffer.Stride == 0;
 
 	const DXGI_FORMAT format = byteAddressBuffer ? DXGI_FORMAT_R32_TYPELESS : DXGI_FORMAT_UNKNOWN;
-	const usize count = byteAddressBuffer ? (description.Size / 4) : (description.Size / description.Stride);
+	const usize count = byteAddressBuffer ? (description.Buffer.Size / 4) : (description.Buffer.Size / description.Buffer.Stride);
 	const D3D12_BUFFER_SRV_FLAGS flags = byteAddressBuffer ? D3D12_BUFFER_SRV_FLAG_RAW : D3D12_BUFFER_SRV_FLAG_NONE;
 
 	return
@@ -285,7 +285,7 @@ inline ToViewType<ViewType::ShaderResource>::Type To<ViewType::ShaderResource>(c
 		{
 			.FirstElement = 0,
 			.NumElements = static_cast<uint32>(count),
-			.StructureByteStride = static_cast<uint32>(description.Stride),
+			.StructureByteStride = static_cast<uint32>(description.Buffer.Stride),
 			.Flags = flags,
 		},
 	};
@@ -301,7 +301,7 @@ inline ToViewType<ViewType::UnorderedAccess>::Type To<ViewType::UnorderedAccess>
 		.Buffer =
 		{
 			.FirstElement = 0,
-			.NumElements = static_cast<uint32>(description.Size / sizeof(uint32)),
+			.NumElements = static_cast<uint32>(description.Buffer.Size / sizeof(uint32)),
 			.StructureByteStride = 0,
 			.CounterOffsetInBytes = 0,
 			.Flags = D3D12_BUFFER_UAV_FLAG_RAW,
