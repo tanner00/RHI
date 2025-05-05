@@ -3,6 +3,7 @@
 #include "AccelerationStructure.hpp"
 #include "Allocator.hpp"
 #include "Barrier.hpp"
+#include "Buffer.hpp"
 #include "BufferView.hpp"
 #include "ComputePipeline.hpp"
 #include "Device.hpp"

@@ -17,14 +17,6 @@ struct BarrierPair
 	T After;
 };
 
-struct SubBuffer
-{
-	Resource Resource;
-	usize Size;
-	usize Stride;
-	usize Offset;
-};
-
 struct GraphicsContextDescription
 {
 };
