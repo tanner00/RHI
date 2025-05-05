@@ -153,6 +153,7 @@ static IDxcResult* CompileShader(RHI::ShaderStage stage, StringView filePath)
 		DXC_ARG_WARNINGS_ARE_ERRORS,
 		L"-HV", L"2021",
 		L"-all_resources_bound",
+		L"-enable-16bit-types",
 #if DEBUG
 		DXC_ARG_OPTIMIZATION_LEVEL0,
 		DXC_ARG_SKIP_OPTIMIZATIONS,
