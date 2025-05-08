@@ -37,7 +37,7 @@ enum class ResourceFlags : uint8
 {
 	None					= 0b0000000,
 	Upload					= 0b0000001,
-	Readback				= 0b0000010,
+	ReadBack				= 0b0000010,
 	UnorderedAccess			= 0b0000100,
 	RenderTarget			= 0b0001000,
 	DepthStencil			= 0b0010000,

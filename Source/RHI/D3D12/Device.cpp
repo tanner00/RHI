@@ -27,14 +27,13 @@ __declspec(dllexport) extern const uint32 D3D12SDKVersion = D3D12_PREVIEW_SDK_VE
 __declspec(dllexport) extern const char* D3D12SDKPath = ".\\D3D12\\";
 }
 
-static constexpr DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
-
 namespace RHI::D3D12
 {
 
+static constexpr DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
+
 Device::Device(const Platform::Window* window)
-	: Native(nullptr)
-	, FrameFenceValues()
+	: FrameFenceValues()
 	, PendingDeletes(Allocator)
 	, PendingUploads(Allocator)
 {

@@ -38,13 +38,21 @@ inline D3D12_RESOURCE_FLAGS To(ResourceFlags flags)
 {
 	D3D12_RESOURCE_FLAGS nativeFlags = D3D12_RESOURCE_FLAG_NONE;
 	if (HasFlags(flags, ResourceFlags::UnorderedAccess))
+	{
 		nativeFlags |= D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS;
+	}
 	if (HasFlags(flags, ResourceFlags::RenderTarget))
+	{
 		nativeFlags |= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
+	}
 	if (HasFlags(flags, ResourceFlags::DepthStencil))
+	{
 		nativeFlags |= D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
+	}
 	if (HasFlags(flags, ResourceFlags::AccelerationStructure))
+	{
 		nativeFlags |= D3D12_RESOURCE_FLAG_RAYTRACING_ACCELERATION_STRUCTURE;
+	}
 	return nativeFlags;
 }
 

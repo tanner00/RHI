@@ -48,7 +48,7 @@ public:
 	void SetVertexBuffer(usize slot, const SubBuffer& vertexBuffer) const;
 	void SetIndexBuffer(const SubBuffer& indexBuffer) const;
 
-	void SetConstantBuffer(StringView name, const Resource& buffer, usize offsetIndex = 0) const;
+	void SetConstantBuffer(StringView name, const Resource& buffer, usize offset = 0) const;
 	void SetRootConstants(const void* data) const;
 
 	void Draw(usize vertexCount) const;

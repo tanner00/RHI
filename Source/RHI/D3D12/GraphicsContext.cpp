@@ -42,7 +42,7 @@ GraphicsContext::GraphicsContext(const GraphicsContextDescription& description, 
 	{
 		.Type = ResourceType::Buffer,
 		.Format = ResourceFormat::None,
-		.Flags = ResourceFlags::Readback,
+		.Flags = ResourceFlags::ReadBack,
 		.InitialLayout = BarrierLayout::Undefined,
 		.Size = (FramesInFlight + 1) * FrameTimeQueryCount * sizeof(uint64),
 		.Name = "Frame Time Query Resource"_view,
@@ -101,8 +101,12 @@ void GraphicsContext::End()
 
 	static uint32 currentFrameResolveIndex = 0;
 	const uint64 currentFrameResolveOffset = currentFrameResolveIndex * FrameTimeQueryCount * sizeof(uint64);
-	CommandList->ResolveQueryData(FrameTimeQueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0, FrameTimeQueryCount,
-								  frameTimeQueryResourceNative, currentFrameResolveOffset);
+	CommandList->ResolveQueryData(FrameTimeQueryHeap,
+								  D3D12_QUERY_TYPE_TIMESTAMP,
+								  0,
+								  FrameTimeQueryCount,
+								  frameTimeQueryResourceNative,
+								  currentFrameResolveOffset);
 #endif
 
 	CHECK_RESULT(CommandList->Close());
@@ -118,7 +122,7 @@ void GraphicsContext::End()
 		.End = readbackOffset + FrameTimeQueryCount * sizeof(uint64),
 	};
 
-	uint64* data;
+	uint64* data = nullptr;
 	CHECK_RESULT(frameTimeQueryResourceNative->Map(0, &dataRange, reinterpret_cast<void**>(&data)));
 	uint64 times[FrameTimeQueryCount] = {};
 	Platform::MemoryCopy(times, data, FrameTimeQueryCount * sizeof(uint64));

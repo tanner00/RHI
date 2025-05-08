@@ -68,9 +68,9 @@ void GraphicsContext::SetIndexBuffer(const SubBuffer& indexBuffer) const
 	Backend->SetIndexBuffer(indexBuffer);
 }
 
-void GraphicsContext::SetConstantBuffer(StringView name, const Resource& buffer, usize offsetIndex) const
+void GraphicsContext::SetConstantBuffer(StringView name, const Resource& buffer, usize offset) const
 {
-	Backend->SetConstantBuffer(name, buffer.Backend, offsetIndex);
+	Backend->SetConstantBuffer(name, buffer.Backend, offset);
 }
 
 void GraphicsContext::SetRootConstants(const void* data) const

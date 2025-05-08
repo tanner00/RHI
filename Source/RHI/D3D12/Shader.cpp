@@ -103,8 +103,7 @@ void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 									   {
 										   .ShaderRegister = resourceDescription.BindPoint,
 										   .RegisterSpace = resourceDescription.Space,
-										   .Num32BitValues = static_cast<uint32>(variableDescription
-											   .Size / sizeof(uint32)),
+										   .Num32BitValues = static_cast<uint32>(variableDescription.Size / sizeof(uint32)),
 									   },
 									   .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
 								   });
@@ -119,8 +118,7 @@ void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 									   {
 										   .ShaderRegister = resourceDescription.BindPoint,
 										   .RegisterSpace = resourceDescription.Space,
-										   .Flags =
-										   D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
+										   .Flags = D3D12_ROOT_DESCRIPTOR_FLAG_DATA_STATIC_WHILE_SET_AT_EXECUTE,
 									   },
 									   .ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL,
 								   });
@@ -150,23 +148,23 @@ static IDxcResult* CompileShader(RHI::ShaderStage stage, StringView filePath)
 
 	const wchar_t* arguments[] =
 	{
-		DXC_ARG_WARNINGS_ARE_ERRORS,
 		L"-HV", L"2021",
-		L"-all_resources_bound",
+		DXC_ARG_WARNINGS_ARE_ERRORS,
+		DXC_ARG_ALL_RESOURCES_BOUND,
 		L"-enable-16bit-types",
 #if DEBUG
 		DXC_ARG_OPTIMIZATION_LEVEL0,
 		DXC_ARG_SKIP_OPTIMIZATIONS,
 #endif
-#if RELEASE
-		L"-Qstrip_debug",
+#if RELEASE || PROFILE
+		DXC_ARG_OPTIMIZATION_LEVEL3,
 #endif
 #if DEBUG || PROFILE
 		DXC_ARG_DEBUG,
 		L"-Qembed_debug",
 #endif
-#if RELEASE || PROFILE
-		DXC_ARG_OPTIMIZATION_LEVEL3,
+#if RELEASE
+		L"-Qstrip_debug",
 #endif
 	};
 

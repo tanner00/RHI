@@ -41,7 +41,6 @@ TextureView::TextureView(const TextureViewDescription& description, D3D12::Devic
 	}
 	default:
 		CHECK(false);
-		break;
 	}
 }
 

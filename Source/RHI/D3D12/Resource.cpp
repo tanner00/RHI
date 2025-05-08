@@ -61,7 +61,7 @@ static ID3D12Resource2* AllocateResource(const Device* device, const ResourceDes
 
 	const D3D12_HEAP_PROPERTIES *heapProperties = HasFlags(description.Flags, ResourceFlags::Upload)
 												? &UploadHeapProperties
-												: (HasFlags(description.Flags, ResourceFlags::Readback) ? &ReadbackHeapProperties : &DefaultHeapProperties);
+												: (HasFlags(description.Flags, ResourceFlags::ReadBack) ? &ReadbackHeapProperties : &DefaultHeapProperties);
 
 	ID3D12Resource2* resource = nullptr;
 	CHECK_RESULT(device->Native->CreateCommittedResource3(heapProperties,
@@ -138,7 +138,9 @@ void Resource::WriteBuffer(const void* data, Array<UploadPair<ID3D12Resource2*, 
 	uploadResource->Unmap(0, WriteEverything);
 
 	if (!streamed)
+	{
 		pendingUploads->Add({ uploadResource, this });
+	}
 }
 
 void Resource::WriteTexture(const void* data, Array<UploadPair<ID3D12Resource2*, Resource*>>* pendingUploads)

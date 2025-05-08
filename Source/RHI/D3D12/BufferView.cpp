@@ -41,7 +41,6 @@ BufferView::BufferView(const BufferViewDescription& description, D3D12::Device* 
 	}
 	default:
 		CHECK(false);
-		break;
 	}
 }
 
