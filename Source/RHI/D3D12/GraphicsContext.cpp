@@ -156,7 +156,17 @@ void GraphicsContext::SetViewport(uint32 width, uint32 height) const
 void GraphicsContext::SetRenderTarget(const TextureView* renderTarget) const
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = renderTarget->GetCpu();
-	CommandList->OMSetRenderTargets(1, &cpu, true, nullptr);
+	switch (renderTarget->Type)
+	{
+	case ViewType::RenderTarget:
+		CommandList->OMSetRenderTargets(1, &cpu, true, nullptr);
+		break;
+	case ViewType::DepthStencil:
+		CommandList->OMSetRenderTargets(0, nullptr, true, &cpu);
+		break;
+	default:
+		CHECK(false);
+	}
 }
 
 void GraphicsContext::SetRenderTarget(const TextureView* renderTarget, const TextureView* depthStencil) const
