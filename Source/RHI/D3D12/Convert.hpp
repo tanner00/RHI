@@ -381,7 +381,7 @@ inline ToViewType<ViewType::Sampler>::Type To(const SamplerDescription& descript
 		.MipLODBias = 0,
 		.MaxAnisotropy = D3D12_DEFAULT_MAX_ANISOTROPY,
 		.ComparisonFunc = D3D12_COMPARISON_FUNC_NONE,
-		.FloatBorderColor = { description.BorderColor.X, description.BorderColor.Y, description.BorderColor.Z, description.BorderColor.W, },
+		.FloatBorderColor = { description.BorderColor.R, description.BorderColor.G, description.BorderColor.B, description.BorderColor.A },
 		.MinLOD = 0.0f,
 		.MaxLOD = D3D12_FLOAT32_MAX,
 		.Flags = D3D12_SAMPLER_FLAG_NONE,

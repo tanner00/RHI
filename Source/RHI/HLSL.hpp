@@ -6,21 +6,57 @@
 
 struct Float2
 {
-	float X;
-	float Y;
+	union
+	{
+		float X;
+		float R;
+	};
+	union
+	{
+		float Y;
+		float G;
+	};
 };
 
 struct Float3
 {
-	float X;
-	float Y;
-	float Z;
+	union
+	{
+		float X;
+		float R;
+	};
+	union
+	{
+		float Y;
+		float G;
+	};
+	union
+	{
+		float Z;
+		float B;
+	};
 };
 
 struct Float4
 {
-	float X;
-	float Y;
-	float Z;
-	float W;
+	union
+	{
+		float X;
+		float R;
+	};
+	union
+	{
+		float Y;
+		float G;
+	};
+	union
+	{
+		float Z;
+		float B;
+	};
+	union
+	{
+		float W;
+		float A;
+	};
 };
