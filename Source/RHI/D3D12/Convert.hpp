@@ -341,6 +341,21 @@ inline ToViewType<ViewType::ShaderResource>::Type To<ViewType::ShaderResource>(c
 }
 
 template<>
+inline ToViewType<ViewType::UnorderedAccess>::Type To<ViewType::UnorderedAccess>(const TextureViewDescription& description)
+{
+	return
+	{
+		.Format = To(description.Format),
+		.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
+		.Texture2D = D3D12_TEX2D_UAV
+		{
+			.MipSlice = 0,
+			.PlaneSlice = 0,
+		},
+	};
+}
+
+template<>
 inline ToViewType<ViewType::RenderTarget>::Type To<ViewType::RenderTarget>(const TextureViewDescription& description)
 {
 	return

@@ -23,6 +23,14 @@ TextureView::TextureView(const TextureViewDescription& description, D3D12::Devic
 		device->Native->CreateShaderResourceView(backendResource->Native, &shaderResourceDescription, GetCpu());
 		break;
 	}
+	case ViewType::UnorderedAccess:
+	{
+		HeapIndex = device->ConstantBufferShaderResourceUnorderedAccessViewHeap.AllocateIndex();
+
+		const D3D12_UNORDERED_ACCESS_VIEW_DESC unorderedAccessDescription = To<ViewType::UnorderedAccess>(description);
+		device->Native->CreateUnorderedAccessView(backendResource->Native, nullptr, &unorderedAccessDescription, GetCpu());
+		break;
+	}
 	case ViewType::RenderTarget:
 	{
 		HeapIndex = device->RenderTargetViewHeap.AllocateIndex();
