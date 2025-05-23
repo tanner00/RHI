@@ -2,6 +2,7 @@
 
 #include "Forward.hpp"
 
+#include "Luft/Array.hpp"
 #include "Luft/Hash.hpp"
 
 namespace RHI
@@ -13,10 +14,18 @@ enum class ShaderStage : uint8
 	Pixel,
 	Compute,
 };
+
+struct ShaderDefine
+{
+	StringView Name;
+	StringView Value;
+};
+
 struct ShaderDescription
 {
 	StringView FilePath;
 	ShaderStage Stage;
+	ArrayView<ShaderDefine> Defines;
 };
 
 class Shader final : public ShaderDescription

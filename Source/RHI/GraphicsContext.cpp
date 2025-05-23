@@ -3,6 +3,7 @@
 #include "GraphicsPipeline.hpp"
 #include "TextureView.hpp"
 
+#include "D3D12/Base.hpp"
 #include "D3D12/GraphicsContext.hpp"
 
 namespace RHI

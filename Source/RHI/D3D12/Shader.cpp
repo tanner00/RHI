@@ -6,6 +6,17 @@
 #include "D3D12/d3d12shader.h"
 #include "dxc/dxcapi.h"
 
+static void ToWideChar(StringView input, wchar_t* output, usize outputLength)
+{
+	VERIFY(SUCCEEDED(MultiByteToWideChar(CP_UTF8,
+										 MB_ERR_INVALID_CHARS,
+										 input.GetData(),
+										 static_cast<int32>(input.GetLength()),
+										 output,
+										 static_cast<int32>(outputLength))),
+										 "Failed to convert to wide string!");
+}
+
 namespace Dxc
 {
 
@@ -126,20 +137,12 @@ void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 	}
 }
 
-static IDxcResult* CompileShader(RHI::ShaderStage stage, StringView filePath)
+static IDxcResult* CompileShader(StringView filePath, RHI::ShaderStage stage, ArrayView<RHI::ShaderDefine> defines)
 {
 	CHECK(Compiler && Utils);
 
 	wchar_t pathBuffer[MAX_PATH] = {};
-	VERIFY(filePath.GetLength() < sizeof(pathBuffer), "File path length limit exceeded!");
-
-	const int32 result = MultiByteToWideChar(CP_UTF8,
-											 MB_ERR_INVALID_CHARS,
-											 filePath.GetData(),
-											 static_cast<int32>(filePath.GetLength()),
-											 pathBuffer,
-											 ARRAY_COUNT(pathBuffer));
-	CHECK(SUCCEEDED(result));
+	ToWideChar(filePath, pathBuffer, ARRAY_COUNT(pathBuffer));
 
 	uint32 codePage = DXC_CP_UTF8;
 	IDxcBlobEncoding* sourceBlob = nullptr;
@@ -187,10 +190,32 @@ static IDxcResult* CompileShader(RHI::ShaderStage stage, StringView filePath)
 	default:
 		CHECK(false);
 	}
-	constexpr const DxcDefine* defines = nullptr;
+
+	Array<DxcDefine> dxcDefines(defines.GetLength(), RHI::Allocator);
+	for (const RHI::ShaderDefine& define : defines)
+	{
+		wchar_t name[64] = {};
+		ToWideChar(define.Name, name, ARRAY_COUNT(name));
+
+		wchar_t value[64] = {};
+		ToWideChar(define.Value, value, ARRAY_COUNT(value));
+
+		dxcDefines.Add(DxcDefine
+		{
+			.Name = name,
+			.Value = value,
+		});
+	}
 
 	IDxcCompilerArgs* compileArguments = nullptr;
-	CHECK_RESULT(Utils->BuildArguments(pathBuffer, entryPoint, profile, arguments, ARRAY_COUNT(arguments), defines, 0, &compileArguments));
+	CHECK_RESULT(Utils->BuildArguments(pathBuffer,
+									   entryPoint,
+									   profile,
+									   arguments,
+									   ARRAY_COUNT(arguments),
+									   dxcDefines.GetData(),
+									   static_cast<uint32>(dxcDefines.GetLength()),
+									   &compileArguments));
 
 	IDxcIncludeHandler* includeHandler = nullptr;
 	CHECK_RESULT(Utils->CreateDefaultIncludeHandler(&includeHandler));
@@ -202,7 +227,11 @@ static IDxcResult* CompileShader(RHI::ShaderStage stage, StringView filePath)
 		.Encoding = DXC_CP_UTF8,
 	};
 	IDxcResult* compileResult = nullptr;
-	dxcResult = Compiler->Compile(&buffer, compileArguments->GetArguments(), compileArguments->GetCount(), includeHandler, IID_PPV_ARGS(&compileResult));
+	dxcResult = Compiler->Compile(&buffer,
+								  compileArguments->GetArguments(),
+								  compileArguments->GetCount(),
+								  includeHandler,
+								  IID_PPV_ARGS(&compileResult));
 	CHECK(SUCCEEDED(dxcResult) && compileResult);
 
 	SAFE_RELEASE(includeHandler);
@@ -234,7 +263,7 @@ Shader::Shader(const ShaderDescription& description, D3D12::Device* device)
 	: ShaderDescription(description)
 	, Device(device)
 {
-	IDxcResult* compileResult = Dxc::CompileShader(Stage, FilePath);
+	IDxcResult* compileResult = Dxc::CompileShader(FilePath, Stage, Defines);
 
 	CHECK_RESULT(compileResult->GetResult(&Blob));
 
