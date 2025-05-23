@@ -20,17 +20,19 @@ enum class ResourceFormat : uint8
 {
 	None,
 
-	Rgba8Unorm,
-	Rgba8SrgbUnorm,
+	RGBA8UNorm,
+	RGBA8UNormSRGB,
 
-	Rgba16Float,
-	Rgba32Float,
+	BC7UNorm,
+	BC7UNormSRGB,
 
-	Bc7Unorm,
-	Bc7SrgbUnorm,
+	RGBA16Float,
+	RGBA32Float,
 
-	Depth32,
+	RG32UInt,
+
 	Depth24Stencil8,
+	Depth32,
 };
 
 enum class ResourceFlags : uint8

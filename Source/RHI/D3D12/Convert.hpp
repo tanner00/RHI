@@ -77,18 +77,20 @@ inline DXGI_FORMAT To(ResourceFormat format)
 	{
 	case ResourceFormat::None:
 		return DXGI_FORMAT_UNKNOWN;
-	case ResourceFormat::Rgba8Unorm:
+	case ResourceFormat::RGBA8UNorm:
 		return DXGI_FORMAT_R8G8B8A8_UNORM;
-	case ResourceFormat::Rgba8SrgbUnorm:
+	case ResourceFormat::RGBA8UNormSRGB:
 		return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	case ResourceFormat::Rgba32Float:
-		return DXGI_FORMAT_R32G32B32A32_FLOAT;
-	case ResourceFormat::Rgba16Float:
-		return DXGI_FORMAT_R16G16B16A16_FLOAT;
-	case ResourceFormat::Bc7Unorm:
+	case ResourceFormat::BC7UNorm:
 		return DXGI_FORMAT_BC7_UNORM;
-	case ResourceFormat::Bc7SrgbUnorm:
+	case ResourceFormat::BC7UNormSRGB:
 		return DXGI_FORMAT_BC7_UNORM_SRGB;
+	case ResourceFormat::RGBA16Float:
+		return DXGI_FORMAT_R16G16B16A16_FLOAT;
+	case ResourceFormat::RGBA32Float:
+		return DXGI_FORMAT_R32G32B32A32_FLOAT;
+	case ResourceFormat::RG32UInt:
+		return DXGI_FORMAT_R32G32_UINT;
 	case ResourceFormat::Depth24Stencil8:
 		return DXGI_FORMAT_D24_UNORM_S8_UINT;
 	case ResourceFormat::Depth32:
