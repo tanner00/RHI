@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Luft/Base.hpp"
+
 #include "D3D12/d3d12.h"
 
 #define SAFE_RELEASE(p) if ((p)) { (p)->Release(); (p) = nullptr; }
@@ -20,6 +22,8 @@ namespace RHI::D3D12
 {
 
 inline constexpr DXGI_SAMPLE_DESC DefaultSampleDescription = { 1, 0 };
+
+inline constexpr usize MaxRenderTargetCount = D3D12_SIMULTANEOUS_RENDER_TARGET_COUNT;
 
 inline constexpr D3D12_RANGE ReadNothing = { 0, 0 };
 inline constexpr D3D12_RANGE WriteNothing = { 0, 0 };

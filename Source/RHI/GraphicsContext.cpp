@@ -33,6 +33,18 @@ void GraphicsContext::SetRenderTarget(const TextureView& renderTarget, const Tex
 	Backend->SetRenderTarget(renderTarget.Backend, depthStencil.Backend);
 }
 
+void GraphicsContext::SetRenderTargets(const ArrayView<const TextureView>& renderTargets, const TextureView& depthStencil) const
+{
+	CHECK(renderTargets.GetLength() < RHI_BACKEND(MaxRenderTargetCount));
+
+	const RHI_BACKEND(TextureView)* renderTargetBackends[RHI_BACKEND(MaxRenderTargetCount)] = {};
+	for (usize renderTargetIndex = 0; renderTargetIndex < renderTargets.GetLength(); ++renderTargetIndex)
+	{
+		renderTargetBackends[renderTargetIndex] = renderTargets[renderTargetIndex].Backend;
+	}
+	Backend->SetRenderTargets(ArrayView(renderTargetBackends, renderTargets.GetLength()), depthStencil.Backend);
+}
+
 void GraphicsContext::SetDepthRenderTarget(const TextureView& depthStencil) const
 {
 	Backend->SetDepthRenderTarget(depthStencil.Backend);

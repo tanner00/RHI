@@ -163,10 +163,10 @@ void GraphicsContext::SetRenderTarget(const TextureView* renderTarget) const
 	switch (renderTarget->Type)
 	{
 	case ViewType::RenderTarget:
-		CommandList->OMSetRenderTargets(1, &cpu, true, nullptr);
+		CommandList->OMSetRenderTargets(1, &cpu, false, nullptr);
 		break;
 	case ViewType::DepthStencil:
-		CommandList->OMSetRenderTargets(0, nullptr, true, &cpu);
+		CommandList->OMSetRenderTargets(0, nullptr, false, &cpu);
 		break;
 	default:
 		CHECK(false);
@@ -177,13 +177,26 @@ void GraphicsContext::SetRenderTarget(const TextureView* renderTarget, const Tex
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE renderTargetCpu = renderTarget->GetCpu();
 	const D3D12_CPU_DESCRIPTOR_HANDLE depthStencilCpu = depthStencil->GetCpu();
-	CommandList->OMSetRenderTargets(1, &renderTargetCpu, true, &depthStencilCpu);
+	CommandList->OMSetRenderTargets(1, &renderTargetCpu, false, &depthStencilCpu);
+}
+
+void GraphicsContext::SetRenderTargets(const ArrayView<const TextureView*>& renderTargets, const TextureView* depthStencil) const
+{
+	CHECK(renderTargets.GetLength() < MaxRenderTargetCount);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE renderTargetCpus[MaxRenderTargetCount] = {};
+	for (usize renderTargetIndex = 0; renderTargetIndex < renderTargets.GetLength(); ++renderTargetIndex)
+	{
+		renderTargetCpus[renderTargetIndex] = renderTargets[renderTargetIndex]->GetCpu();
+	}
+	const D3D12_CPU_DESCRIPTOR_HANDLE depthStencilCpu = depthStencil->GetCpu();
+	CommandList->OMSetRenderTargets(static_cast<uint32>(renderTargets.GetLength()), renderTargetCpus, false, &depthStencilCpu);
 }
 
 void GraphicsContext::SetDepthRenderTarget(const TextureView* depthStencil) const
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = depthStencil->GetCpu();
-	CommandList->OMSetRenderTargets(1, nullptr, true, &cpu);
+	CommandList->OMSetRenderTargets(1, nullptr, false, &cpu);
 }
 
 void GraphicsContext::ClearRenderTarget(const TextureView* renderTarget, Float4 color) const

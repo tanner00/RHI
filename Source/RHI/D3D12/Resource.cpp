@@ -44,7 +44,7 @@ static ID3D12Resource2* AllocateResource(const Device* device, const ResourceDes
 	const D3D12_CLEAR_VALUE colorClear =
 	{
 		.Format = nativeDescription.Format,
-		.Color = { 0.0f, 0.0f, 0.0f, 1.0f },
+		.Color = { 0.0f, 0.0f, 0.0f, 0.0f },
 	};
 	const D3D12_CLEAR_VALUE depthClear =
 	{

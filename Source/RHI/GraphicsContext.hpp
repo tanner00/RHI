@@ -3,8 +3,8 @@
 #include "Barrier.hpp"
 #include "Forward.hpp"
 #include "HLSL.hpp"
-#include "Resource.hpp"
 
+#include "Luft/Array.hpp"
 #include "Luft/String.hpp"
 
 namespace RHI
@@ -37,6 +37,7 @@ public:
 
 	void SetRenderTarget(const TextureView& renderTarget) const;
 	void SetRenderTarget(const TextureView& renderTarget, const TextureView& depthStencil) const;
+	void SetRenderTargets(const ArrayView<const TextureView>& renderTargets, const TextureView& depthStencil) const;
 	void SetDepthRenderTarget(const TextureView& depthStencil) const;
 
 	void ClearRenderTarget(const TextureView& renderTarget, Float4 color) const;

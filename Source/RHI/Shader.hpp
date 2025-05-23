@@ -13,11 +13,10 @@ enum class ShaderStage : uint8
 	Pixel,
 	Compute,
 };
-
 struct ShaderDescription
 {
-	ShaderStage Stage;
 	StringView FilePath;
+	ShaderStage Stage;
 };
 
 class Shader final : public ShaderDescription

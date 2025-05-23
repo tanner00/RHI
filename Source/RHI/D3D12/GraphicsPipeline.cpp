@@ -12,6 +12,8 @@ GraphicsPipeline::GraphicsPipeline(const GraphicsPipelineDescription& descriptio
 	: Pipeline(device)
 	, GraphicsPipelineDescription(description)
 {
+	CHECK(RenderTargetFormats.GetLength() <= MaxRenderTargetCount);
+
 	CHECK(Stages.Contains(ShaderStage::Vertex));
 	const bool usesPixelShader = Stages.Contains(ShaderStage::Pixel);
 	CHECK(usesPixelShader ? (Stages.GetCount() == 2) : (Stages.GetCount() == 1));
@@ -148,10 +150,17 @@ GraphicsPipeline::GraphicsPipeline(const GraphicsPipelineDescription& descriptio
 		},
 		.IBStripCutValue = D3D12_INDEX_BUFFER_STRIP_CUT_VALUE_DISABLED,
 		.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-		.NumRenderTargets = usesPixelShader ? 1U : 0U,
+		.NumRenderTargets = usesPixelShader ? static_cast<uint32>(RenderTargetFormats.GetLength()) : 0,
 		.RTVFormats =
 		{
-			To(RenderTargetFormat),
+			RenderTargetFormats.GetLength() > 0 ? To(RenderTargetFormats[0]) : DXGI_FORMAT_UNKNOWN,
+			RenderTargetFormats.GetLength() > 1 ? To(RenderTargetFormats[1]) : DXGI_FORMAT_UNKNOWN,
+			RenderTargetFormats.GetLength() > 2 ? To(RenderTargetFormats[2]) : DXGI_FORMAT_UNKNOWN,
+			RenderTargetFormats.GetLength() > 3 ? To(RenderTargetFormats[3]) : DXGI_FORMAT_UNKNOWN,
+			RenderTargetFormats.GetLength() > 4 ? To(RenderTargetFormats[4]) : DXGI_FORMAT_UNKNOWN,
+			RenderTargetFormats.GetLength() > 5 ? To(RenderTargetFormats[5]) : DXGI_FORMAT_UNKNOWN,
+			RenderTargetFormats.GetLength() > 6 ? To(RenderTargetFormats[6]) : DXGI_FORMAT_UNKNOWN,
+			RenderTargetFormats.GetLength() > 7 ? To(RenderTargetFormats[7]) : DXGI_FORMAT_UNKNOWN,
 		},
 		.DSVFormat = To(DepthStencilFormat),
 		.SampleDesc = DefaultSampleDescription,
