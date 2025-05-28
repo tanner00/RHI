@@ -137,7 +137,7 @@ void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 	}
 }
 
-static IDxcResult* CompileShader(StringView filePath, RHI::ShaderStage stage, ArrayView<RHI::ShaderDefine> defines)
+static IDxcResult* CompileShader(StringView filePath, RHI::ShaderStage stage, ArrayView<const RHI::ShaderDefine> defines)
 {
 	CHECK(Compiler && Utils);
 

@@ -25,7 +25,7 @@ struct ShaderDescription
 {
 	StringView FilePath;
 	ShaderStage Stage;
-	ArrayView<ShaderDefine> Defines;
+	ArrayView<const ShaderDefine> Defines;
 };
 
 class Shader final : public ShaderDescription
