@@ -23,9 +23,6 @@ enum class ResourceFormat : uint8
 	RGBA8UNorm,
 	RGBA8UNormSRGB,
 
-	BC7UNorm,
-	BC7UNormSRGB,
-
 	RGBA16Float,
 	RGBA32Float,
 
@@ -33,6 +30,13 @@ enum class ResourceFormat : uint8
 
 	Depth24Stencil8,
 	Depth32,
+
+	BC1UNorm,
+	BC3UNorm,
+	BC5UNorm,
+
+	BC7UNorm,
+	BC7UNormSRGB,
 };
 
 enum class ResourceFlags : uint8

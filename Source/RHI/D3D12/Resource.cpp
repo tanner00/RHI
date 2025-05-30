@@ -182,7 +182,7 @@ void Resource::WriteTexture(const void* data, Array<UploadPair<ID3D12Resource2*,
 		const uint64 rowSize = rowSizes[subresourceIndex];
 		const uint32 rowCount = rowCounts[subresourceIndex];
 
-		for (usize row = 0; row < rowCounts[subresourceIndex]; ++row)
+		for (usize row = 0; row < rowCount; ++row)
 		{
 			Platform::MemoryCopy
 			(

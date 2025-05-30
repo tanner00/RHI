@@ -81,10 +81,6 @@ inline DXGI_FORMAT To(ResourceFormat format)
 		return DXGI_FORMAT_R8G8B8A8_UNORM;
 	case ResourceFormat::RGBA8UNormSRGB:
 		return DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	case ResourceFormat::BC7UNorm:
-		return DXGI_FORMAT_BC7_UNORM;
-	case ResourceFormat::BC7UNormSRGB:
-		return DXGI_FORMAT_BC7_UNORM_SRGB;
 	case ResourceFormat::RGBA16Float:
 		return DXGI_FORMAT_R16G16B16A16_FLOAT;
 	case ResourceFormat::RGBA32Float:
@@ -95,6 +91,16 @@ inline DXGI_FORMAT To(ResourceFormat format)
 		return DXGI_FORMAT_D24_UNORM_S8_UINT;
 	case ResourceFormat::Depth32:
 		return DXGI_FORMAT_D32_FLOAT;
+	case ResourceFormat::BC1UNorm:
+		return DXGI_FORMAT_BC1_UNORM;
+	case ResourceFormat::BC3UNorm:
+		return DXGI_FORMAT_BC3_UNORM;
+	case ResourceFormat::BC5UNorm:
+		return DXGI_FORMAT_BC5_UNORM;
+	case ResourceFormat::BC7UNorm:
+		return DXGI_FORMAT_BC7_UNORM;
+	case ResourceFormat::BC7UNormSRGB:
+		return DXGI_FORMAT_BC7_UNORM_SRGB;
 	}
 	CHECK(false);
 	return DXGI_FORMAT_UNKNOWN;
