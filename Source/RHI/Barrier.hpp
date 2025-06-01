@@ -24,12 +24,15 @@ enum class BarrierStage : uint32
 	Predication = 0x800,
 	AllShading = 0x1000,
 	NonPixelShading = 0x2000,
+	EmitAccelerationStructureSizes = 0x4000,
+	BuildAccelerationStructure = 0x800000,
+	CopyAccelerationStructure = 0x1000000,
 };
 FLAGS_ENUM(BarrierStage);
 
 enum class BarrierAccess : uint32
 {
-	Common = 0,
+	Common = 0x0,
 	VertexBuffer = 0x1,
 	ConstantBuffer = 0x2,
 	IndexBuffer = 0x4,
@@ -45,6 +48,8 @@ enum class BarrierAccess : uint32
 	CopySource = 0x800,
 	ResolveDestination = 0x1000,
 	ResolveSource = 0x2000,
+	AccelerationStructureRead = 0x4000,
+	AccelerationStructureWrite = 0x8000,
 	NoAccess = 0x80000000,
 };
 FLAGS_ENUM(BarrierAccess);
