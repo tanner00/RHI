@@ -28,9 +28,12 @@ public:
 struct GraphicsPipelineDescription
 {
 	ShaderStages Stages;
+
 	ArrayView<const ResourceFormat> RenderTargetFormats;
 	ResourceFormat DepthStencilFormat;
+
 	bool AlphaBlend;
+	bool ReverseDepth;
 
 	StringView Name;
 };

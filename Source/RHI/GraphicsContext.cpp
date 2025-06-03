@@ -51,9 +51,9 @@ void GraphicsContext::SetDepthRenderTarget(const TextureView& depthStencil) cons
 	Backend->SetDepthRenderTarget(depthStencil.Backend);
 }
 
-void GraphicsContext::ClearRenderTarget(const TextureView& renderTarget, Float4 color) const
+void GraphicsContext::ClearRenderTarget(const TextureView& renderTarget) const
 {
-	Backend->ClearRenderTarget(renderTarget.Backend, color);
+	Backend->ClearRenderTarget(renderTarget.Backend);
 }
 
 void GraphicsContext::ClearDepthStencil(const TextureView& depthStencil) const

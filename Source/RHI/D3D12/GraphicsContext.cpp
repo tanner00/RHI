@@ -199,19 +199,19 @@ void GraphicsContext::SetDepthRenderTarget(const TextureView* depthStencil) cons
 	CommandList->OMSetRenderTargets(1, nullptr, false, &cpu);
 }
 
-void GraphicsContext::ClearRenderTarget(const TextureView* renderTarget, Float4 color) const
+void GraphicsContext::ClearRenderTarget(const TextureView* renderTarget) const
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = renderTarget->GetCpu();
-	CommandList->ClearRenderTargetView(cpu, reinterpret_cast<const float*>(&color), 0, nullptr);
+	CommandList->ClearRenderTargetView(cpu, reinterpret_cast<const float*>(&renderTarget->Resource.ColorClear), 0, nullptr);
 }
 
 void GraphicsContext::ClearDepthStencil(const TextureView* depthStencil) const
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = depthStencil->GetCpu();
-	const D3D12_CLEAR_FLAGS clearFlag = IsStencilFormat(depthStencil->Format)
-									  ? (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL)
-									  : D3D12_CLEAR_FLAG_DEPTH;
-	CommandList->ClearDepthStencilView(cpu, clearFlag, D3D12_MAX_DEPTH, 0, 0, nullptr);
+	const D3D12_CLEAR_FLAGS clearFlags = IsStencilFormat(depthStencil->Format)
+									   ? (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL)
+									   : D3D12_CLEAR_FLAG_DEPTH;
+	CommandList->ClearDepthStencilView(cpu, clearFlags, depthStencil->Resource.DepthClear, 0, 0, nullptr);
 }
 
 void GraphicsContext::SetPipeline(GraphicsPipeline* pipeline)

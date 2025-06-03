@@ -25,7 +25,7 @@ public:
 	void SetRenderTargets(const ArrayView<const TextureView*>& renderTargets, const TextureView* depthStencil) const;
 	void SetDepthRenderTarget(const TextureView* depthStencil) const;
 
-	void ClearRenderTarget(const TextureView* renderTarget, Float4 color) const;
+	void ClearRenderTarget(const TextureView* renderTarget) const;
 	void ClearDepthStencil(const TextureView* depthStencil) const;
 
 	void SetPipeline(GraphicsPipeline* pipeline);

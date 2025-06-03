@@ -44,14 +44,14 @@ static ID3D12Resource2* AllocateResource(const Device* device, const ResourceDes
 	const D3D12_CLEAR_VALUE colorClear =
 	{
 		.Format = nativeDescription.Format,
-		.Color = { 0.0f, 0.0f, 0.0f, 0.0f },
+		.Color = { description.ColorClear.R, description.ColorClear.G, description.ColorClear.B, description.ColorClear.A },
 	};
 	const D3D12_CLEAR_VALUE depthClear =
 	{
 		.Format = nativeDescription.Format,
 		.DepthStencil = D3D12_DEPTH_STENCIL_VALUE
 		{
-			.Depth = D3D12_MAX_DEPTH,
+			.Depth = description.DepthClear,
 			.Stencil = 0,
 		},
 	};
@@ -61,7 +61,8 @@ static ID3D12Resource2* AllocateResource(const Device* device, const ResourceDes
 
 	const D3D12_HEAP_PROPERTIES *heapProperties = HasFlags(description.Flags, ResourceFlags::Upload)
 												? &UploadHeapProperties
-												: (HasFlags(description.Flags, ResourceFlags::ReadBack) ? &ReadbackHeapProperties : &DefaultHeapProperties);
+												: (HasFlags(description.Flags, ResourceFlags::ReadBack) ? &ReadbackHeapProperties
+																										: &DefaultHeapProperties);
 
 	ID3D12Resource2* resource = nullptr;
 	CHECK_RESULT(device->Native->CreateCommittedResource3(heapProperties,

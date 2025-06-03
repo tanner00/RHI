@@ -124,7 +124,7 @@ GraphicsPipeline::GraphicsPipeline(const GraphicsPipelineDescription& descriptio
 		{
 			.DepthEnable = IsDepthFormat(DepthStencilFormat),
 			.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL,
-			.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+			.DepthFunc = description.ReverseDepth ? D3D12_COMPARISON_FUNC_GREATER_EQUAL : D3D12_COMPARISON_FUNC_LESS_EQUAL,
 			.StencilEnable = IsStencilFormat(DepthStencilFormat),
 			.StencilReadMask = D3D12_DEFAULT_STENCIL_READ_MASK,
 			.StencilWriteMask = D3D12_DEFAULT_STENCIL_WRITE_MASK,

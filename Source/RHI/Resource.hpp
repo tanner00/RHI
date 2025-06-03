@@ -2,6 +2,7 @@
 
 #include "Barrier.hpp"
 #include "Forward.hpp"
+#include "HLSL.hpp"
 
 #include "Luft/FlagsEnum.hpp"
 #include "Luft/String.hpp"
@@ -72,6 +73,12 @@ struct ResourceDescription
 		ResourceDimensions Dimensions;
 	};
 	uint16 MipMapCount;
+
+	union
+	{
+		Float4 ColorClear;
+		float DepthClear;
+	};
 
 	uint8 SwapChainIndex;
 
