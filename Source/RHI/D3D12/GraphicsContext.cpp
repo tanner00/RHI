@@ -374,7 +374,7 @@ void GraphicsContext::BuildAccelerationStructure(const AccelerationStructureGeom
 		.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
 		.ScratchAccelerationStructureData = scratchResource->Native->GetGPUVirtualAddress(),
 	};
-	CommandList->BuildRaytracingAccelerationStructure(&description, 0, NoPostBuildInfo);
+	CommandList->BuildRaytracingAccelerationStructure(&description, 0, NoPostBuildSizes);
 }
 
 void GraphicsContext::BuildAccelerationStructure(const Buffer& instances,
@@ -390,7 +390,7 @@ void GraphicsContext::BuildAccelerationStructure(const Buffer& instances,
 		.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
 		.ScratchAccelerationStructureData = scratchResource->Native->GetGPUVirtualAddress(),
 	};
-	CommandList->BuildRaytracingAccelerationStructure(&description, 0, NoPostBuildInfo);
+	CommandList->BuildRaytracingAccelerationStructure(&description, 0, NoPostBuildSizes);
 }
 
 void GraphicsContext::Execute(ID3D12CommandQueue* queue) const

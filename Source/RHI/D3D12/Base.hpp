@@ -29,7 +29,7 @@ inline constexpr D3D12_RANGE ReadNothing = { 0, 0 };
 inline constexpr D3D12_RANGE WriteNothing = { 0, 0 };
 inline constexpr const D3D12_RANGE* WriteEverything = nullptr;
 
-inline constexpr const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC* NoPostBuildInfo = nullptr;
+inline constexpr const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC* NoPostBuildSizes = nullptr;
 
 template<typename S, typename D>
 struct UploadPair
