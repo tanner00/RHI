@@ -4,37 +4,20 @@
 namespace RHI::D3D12
 {
 
-static D3D12_DESCRIPTOR_HEAP_TYPE To(ViewHeapType type)
-{
-	switch (type)
-	{
-	case ViewHeapType::ConstantBufferShaderResourceUnorderedAccess:
-		return D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	case ViewHeapType::Sampler:
-		return D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER;
-	case ViewHeapType::RenderTarget:
-		return D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-	case ViewHeapType::DepthStencil:
-		return D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-	}
-	CHECK(false);
-	return D3D12_DESCRIPTOR_HEAP_TYPE_NUM_TYPES;
-}
-
-void ViewHeap::Create(uint32 viewCount, ViewHeapType type, bool shaderVisible, const Device* device)
+void ViewHeap::Create(uint32 viewCount, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible, const Device* device)
 {
 	Count = viewCount;
 	Index = 0;
 
-	const D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDescriptor =
+	const D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDescription =
 	{
-		.Type = To(type),
+		.Type = type,
 		.NumDescriptors = Count,
 		.Flags = shaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
 		.NodeMask = 0,
 	};
-	CHECK_RESULT(device->Native->CreateDescriptorHeap(&descriptorHeapDescriptor, IID_PPV_ARGS(&Native)));
-	ViewSize = device->Native->GetDescriptorHandleIncrementSize(descriptorHeapDescriptor.Type);
+	CHECK_RESULT(device->Native->CreateDescriptorHeap(&descriptorHeapDescription, IID_PPV_ARGS(&Native)));
+	ViewSize = device->Native->GetDescriptorHandleIncrementSize(descriptorHeapDescription.Type);
 }
 
 void ViewHeap::Destroy()

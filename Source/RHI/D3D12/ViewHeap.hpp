@@ -10,18 +10,10 @@
 namespace RHI::D3D12
 {
 
-enum class ViewHeapType : uint8
-{
-	ConstantBufferShaderResourceUnorderedAccess,
-	Sampler,
-	RenderTarget,
-	DepthStencil,
-};
-
 class ViewHeap : public NoCopy
 {
 public:
-	void Create(uint32 viewCount, ViewHeapType type, bool shaderVisible, const Device* device);
+	void Create(uint32 viewCount, D3D12_DESCRIPTOR_HEAP_TYPE type, bool shaderVisible, const Device* device);
 	void Destroy();
 
 	uint32 AllocateIndex();

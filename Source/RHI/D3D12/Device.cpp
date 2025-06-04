@@ -153,12 +153,12 @@ Device::Device(const Platform::Window* window)
 	}
 
 	ConstantBufferShaderResourceUnorderedAccessViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
-															   ViewHeapType::ConstantBufferShaderResourceUnorderedAccess,
+															   D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 															   true,
 															   this);
-	RenderTargetViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::RenderTarget, false, this);
-	DepthStencilViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, ViewHeapType::DepthStencil, false, this);
-	SamplerViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, ViewHeapType::Sampler, true, this);
+	RenderTargetViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, false, this);
+	DepthStencilViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false, this);
+	SamplerViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, this);
 
 	uint64 timestampFrequency;
 	CHECK_RESULT(GraphicsQueue->GetTimestampFrequency(&timestampFrequency));
