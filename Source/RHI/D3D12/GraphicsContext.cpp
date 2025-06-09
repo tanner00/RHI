@@ -208,7 +208,7 @@ void GraphicsContext::ClearRenderTarget(const TextureView* renderTarget) const
 void GraphicsContext::ClearDepthStencil(const TextureView* depthStencil) const
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = depthStencil->GetCpu();
-	const D3D12_CLEAR_FLAGS clearFlags = IsStencilFormat(depthStencil->Format)
+	const D3D12_CLEAR_FLAGS clearFlags = IsStencilFormat(depthStencil->Resource.Format)
 									   ? (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL)
 									   : D3D12_CLEAR_FLAG_DEPTH;
 	CommandList->ClearDepthStencilView(cpu, clearFlags, depthStencil->Resource.DepthClear, 0, 0, nullptr);

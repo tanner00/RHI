@@ -333,13 +333,13 @@ inline ToViewType<ViewType::ShaderResource>::Type To<ViewType::ShaderResource>(c
 {
 	return
 	{
-		.Format = To(description.Format),
+		.Format = To(description.Resource.Format),
 		.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
 		.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
 		.Texture2D = D3D12_TEX2D_SRV
 		{
 			.MostDetailedMip = 0,
-			.MipLevels = description.MipMapCount != 0 ? description.MipMapCount : static_cast<uint16>(1),
+			.MipLevels = description.Resource.MipMapCount != 0 ? description.Resource.MipMapCount : static_cast<uint16>(1),
 			.PlaneSlice = 0,
 			.ResourceMinLODClamp = 0,
 		},
@@ -351,7 +351,7 @@ inline ToViewType<ViewType::UnorderedAccess>::Type To<ViewType::UnorderedAccess>
 {
 	return
 	{
-		.Format = To(description.Format),
+		.Format = To(description.Resource.Format),
 		.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D,
 		.Texture2D = D3D12_TEX2D_UAV
 		{
@@ -366,7 +366,7 @@ inline ToViewType<ViewType::RenderTarget>::Type To<ViewType::RenderTarget>(const
 {
 	return
 	{
-		.Format = To(description.Format),
+		.Format = To(description.Resource.Format),
 		.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D,
 		.Texture2D = D3D12_TEX2D_RTV
 		{
@@ -381,7 +381,7 @@ inline ToViewType<ViewType::DepthStencil>::Type To<ViewType::DepthStencil>(const
 {
 	return
 	{
-		.Format = To(description.Format),
+		.Format = To(description.Resource.Format),
 		.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
 		.Flags = D3D12_DSV_FLAG_NONE,
 		.Texture2D =

@@ -11,9 +11,6 @@ struct TextureViewDescription
 {
 	Resource Resource;
 	ViewType Type;
-
-	ResourceFormat Format;
-	uint16 MipMapCount;
 };
 
 class TextureView final : public TextureViewDescription
