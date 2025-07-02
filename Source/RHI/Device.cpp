@@ -29,47 +29,47 @@ Device::~Device()
 
 AccelerationStructure Device::Create(const AccelerationStructureDescription& description)
 {
-	return AccelerationStructure { description, Backend->Create(description) };
+	return AccelerationStructure(description, Backend->Create(description));
 }
 
 BufferView Device::Create(const BufferViewDescription& description)
 {
-	return BufferView { description, Backend->Create(description) };
+	return BufferView(description, Backend->Create(description));
 }
 
 ComputePipeline Device::Create(const ComputePipelineDescription& description)
 {
-	return ComputePipeline { description, Backend->Create(description) };
+	return ComputePipeline(description, Backend->Create(description));
 }
 
 GraphicsContext Device::Create(const GraphicsContextDescription& description)
 {
-	return GraphicsContext { description, Backend->Create(description) };
+	return GraphicsContext(description, Backend->Create(description));
 }
 
 GraphicsPipeline Device::Create(const GraphicsPipelineDescription& description)
 {
-	return GraphicsPipeline { description, Backend->Create(description) };
+	return GraphicsPipeline(description, Backend->Create(description));
 }
 
 Resource Device::Create(const ResourceDescription& description)
 {
-	return Resource { description, Backend->Create(description) };
+	return Resource(description, Backend->Create(description));
 }
 
 Sampler Device::Create(const SamplerDescription& description)
 {
-	return Sampler { description, Backend->Create(description) };
+	return Sampler(description, Backend->Create(description));
 }
 
 Shader Device::Create(const ShaderDescription& description)
 {
-	return Shader { description, Backend->Create(description) };
+	return Shader(description, Backend->Create(description));
 }
 
 TextureView Device::Create(const TextureViewDescription& description)
 {
-	return TextureView { description, Backend->Create(description) };
+	return TextureView(description, Backend->Create(description));
 }
 
 void Device::Destroy(AccelerationStructure* accelerationStructure) const

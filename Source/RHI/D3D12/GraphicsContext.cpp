@@ -58,8 +58,8 @@ GraphicsContext::~GraphicsContext()
 	Device->AddPendingDelete(FrameTimeQueryHeap);
 	FrameTimeQueryHeap = nullptr;
 #endif
-	Device->AddPendingDelete(CommandList);
 
+	Device->AddPendingDelete(CommandList);
 	CommandList = nullptr;
 
 	for (ID3D12CommandAllocator*& commandAllocator : CommandAllocators)
@@ -285,14 +285,14 @@ void GraphicsContext::Copy(const Resource* destination, const Resource* source) 
 
 void GraphicsContext::GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const
 {
-	const D3D12_GLOBAL_BARRIER globalBarrier = D3D12_GLOBAL_BARRIER
+	const D3D12_GLOBAL_BARRIER globalBarrier =
 	{
 		.SyncBefore = To(stage.Before),
 		.SyncAfter = To(stage.After),
 		.AccessBefore = To(access.Before),
 		.AccessAfter = To(access.After),
 	};
-	const D3D12_BARRIER_GROUP barrierGroup = D3D12_BARRIER_GROUP
+	const D3D12_BARRIER_GROUP barrierGroup =
 	{
 		.Type = D3D12_BARRIER_TYPE_GLOBAL,
 		.NumBarriers = 1,
@@ -303,7 +303,7 @@ void GraphicsContext::GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair
 
 void GraphicsContext::BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const Resource* buffer) const
 {
-	const D3D12_BUFFER_BARRIER bufferBarrier = D3D12_BUFFER_BARRIER
+	const D3D12_BUFFER_BARRIER bufferBarrier =
 	{
 		.SyncBefore = To(stage.Before),
 		.SyncAfter = To(stage.After),
@@ -313,7 +313,7 @@ void GraphicsContext::BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair
 		.Offset = 0,
 		.Size = buffer->Size,
 	};
-	const D3D12_BARRIER_GROUP barrierGroup = D3D12_BARRIER_GROUP
+	const D3D12_BARRIER_GROUP barrierGroup =
 	{
 		.Type = D3D12_BARRIER_TYPE_BUFFER,
 		.NumBarriers = 1,
@@ -328,7 +328,7 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage,
 									 const Resource* texture) const
 {
 	static constexpr D3D12_TEXTURE_BARRIER_FLAGS noDiscard = D3D12_TEXTURE_BARRIER_FLAG_NONE;
-	static constexpr D3D12_BARRIER_SUBRESOURCE_RANGE entireRange = D3D12_BARRIER_SUBRESOURCE_RANGE
+	static constexpr D3D12_BARRIER_SUBRESOURCE_RANGE entireRange =
 	{
 		.IndexOrFirstMipLevel = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES,
 		.NumMipLevels = 0,
@@ -337,7 +337,7 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage,
 		.FirstPlane = 0,
 		.NumPlanes = 0,
 	};
-	const D3D12_TEXTURE_BARRIER textureBarrier = D3D12_TEXTURE_BARRIER
+	const D3D12_TEXTURE_BARRIER textureBarrier =
 	{
 		.SyncBefore = To(stage.Before),
 		.SyncAfter = To(stage.After),
@@ -349,7 +349,7 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage,
 		.Subresources = entireRange,
 		.Flags = noDiscard,
 	};
-	const D3D12_BARRIER_GROUP barrierGroup = D3D12_BARRIER_GROUP
+	const D3D12_BARRIER_GROUP barrierGroup =
 	{
 		.Type = D3D12_BARRIER_TYPE_TEXTURE,
 		.NumBarriers = 1,
@@ -367,7 +367,7 @@ void GraphicsContext::BuildAccelerationStructure(const AccelerationStructureGeom
 	const D3D12_RAYTRACING_GEOMETRY_DESC geometryDescription = To(geometry);
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = To(geometryDescription);
 
-	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC description = D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC description =
 	{
 		.DestAccelerationStructureData = resultResource->Native->GetGPUVirtualAddress(),
 		.Inputs = inputs,

@@ -18,7 +18,7 @@ struct AccelerationStructureGeometry
 struct AccelerationStructureInstance
 {
 	uint32 ID;
-	Matrix Transform;
+	Matrix LocalToWorld;
 	Resource AccelerationStructureResource;
 };
 

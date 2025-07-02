@@ -225,15 +225,15 @@ inline D3D12_RAYTRACING_INSTANCE_DESC To(const AccelerationStructureInstance& in
 	CHECK(instance.AccelerationStructureResource.IsValid());
 	CHECK(instance.ID < 0xFFFFFF);
 
-	const Matrix& transform = instance.Transform;
+	const Matrix& localToWorld = instance.LocalToWorld;
 
 	return D3D12_RAYTRACING_INSTANCE_DESC
 	{
 		.Transform =
 		{
-			{ transform.M00, transform.M01, transform.M02, transform.M03 },
-			{ transform.M10, transform.M11, transform.M12, transform.M13 },
-			{ transform.M20, transform.M21, transform.M22, transform.M23 },
+			{ localToWorld.M00, localToWorld.M01, localToWorld.M02, localToWorld.M03 },
+			{ localToWorld.M10, localToWorld.M11, localToWorld.M12, localToWorld.M13 },
+			{ localToWorld.M20, localToWorld.M21, localToWorld.M22, localToWorld.M23 },
 		},
 		.InstanceID = instance.ID,
 		.InstanceMask = 0xFF,

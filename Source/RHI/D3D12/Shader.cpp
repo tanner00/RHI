@@ -82,7 +82,7 @@ void ReflectRootParameters(ID3D12ShaderReflection* shaderReflection,
 		CHECK(resourceDescription.Type == D3D_SIT_CBUFFER);
 
 		const usize resourceNameLength = Platform::StringLength(resourceDescription.Name);
-		String resourceName = String { resourceNameLength, RHI::Allocator };
+		String resourceName(resourceNameLength, RHI::Allocator);
 		for (usize j = 0; j < resourceNameLength; ++j)
 		{
 			resourceName.Append(resourceDescription.Name[j]);

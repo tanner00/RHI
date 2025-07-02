@@ -1,5 +1,4 @@
 #include "ComputePipeline.hpp"
-#include "Base.hpp"
 #include "Convert.hpp"
 #include "Device.hpp"
 
@@ -51,7 +50,9 @@ ComputePipeline::ComputePipeline(const ComputePipelineDescription& description, 
 	(void)rootSignatureResult;
 #endif
 	CHECK(serializedRootSignature);
-	CHECK_RESULT(device->Native->CreateRootSignature(0, serializedRootSignature->GetBufferPointer(), serializedRootSignature->GetBufferSize(),
+	CHECK_RESULT(device->Native->CreateRootSignature(0,
+													 serializedRootSignature->GetBufferPointer(),
+													 serializedRootSignature->GetBufferSize(),
 													 IID_PPV_ARGS(&RootSignature)));
 	SET_D3D_NAME(RootSignature, Name);
 
