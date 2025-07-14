@@ -42,7 +42,7 @@ public:
 	void Present();
 	void WaitForIdle();
 
-	void ReleaseAllDeletes();
+	void ReleaseAllDestroys();
 
 	void ResizeSwapChain(uint32 width, uint32 height);
 
@@ -55,12 +55,12 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCpu(usize index, ViewType type) const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGpu(usize index, ViewType type) const;
 
-	void AddPendingDelete(IUnknown* pendingDelete);
+	void AddPendingDestroy(IUnknown* pendingDestroy);
 	ID3D12Resource2* GetSwapChainResource(usize backBufferIndex) const;
 
 	void FlushUploads();
 
-	void ReleaseFrameDeletes();
+	void ReleaseFrameDestroys();
 
 	ID3D12Device11* Native;
 	IDXGISwapChain4* SwapChain;
@@ -73,7 +73,7 @@ public:
 	ID3D12CommandAllocator* UploadCommandAllocators[FramesInFlight];
 	ID3D12GraphicsCommandList10* UploadCommandList;
 
-	Array<Array<IUnknown*>> PendingDeletes;
+	Array<Array<IUnknown*>> PendingDestroys;
 	Array<UploadPair<ID3D12Resource2*, Resource*>> PendingUploads;
 
 	ViewHeap ConstantBufferShaderResourceUnorderedAccessViewHeap;

@@ -95,7 +95,7 @@ Resource::Resource(const ResourceDescription& description, D3D12::Device* device
 
 Resource::~Resource()
 {
-	Device->AddPendingDelete(Native);
+	Device->AddPendingDestroy(Native);
 }
 
 void Resource::Write(const void* data, Array<UploadPair<ID3D12Resource2*, Resource*>>* pendingUploads)

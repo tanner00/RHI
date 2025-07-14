@@ -55,7 +55,7 @@ public:
 	void Present();
 	void WaitForIdle();
 
-	void ReleaseAllDeletes();
+	void ReleaseAllDestroys();
 
 	void ResizeSwapChain(uint32 width, uint32 height);
 

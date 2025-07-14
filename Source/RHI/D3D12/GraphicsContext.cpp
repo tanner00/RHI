@@ -55,16 +55,16 @@ GraphicsContext::~GraphicsContext()
 #if !RELEASE
 	Device->Destroy(FrameTimeQueryResource);
 	FrameTimeQueryResource = nullptr;
-	Device->AddPendingDelete(FrameTimeQueryHeap);
+	Device->AddPendingDestroy(FrameTimeQueryHeap);
 	FrameTimeQueryHeap = nullptr;
 #endif
 
-	Device->AddPendingDelete(CommandList);
+	Device->AddPendingDestroy(CommandList);
 	CommandList = nullptr;
 
 	for (ID3D12CommandAllocator*& commandAllocator : CommandAllocators)
 	{
-		Device->AddPendingDelete(commandAllocator);
+		Device->AddPendingDestroy(commandAllocator);
 		commandAllocator = nullptr;
 	}
 

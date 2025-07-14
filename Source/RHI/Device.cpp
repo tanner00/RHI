@@ -166,9 +166,9 @@ void Device::WaitForIdle()
 	Backend->WaitForIdle();
 }
 
-void Device::ReleaseAllDeletes()
+void Device::ReleaseAllDestroys()
 {
-	Backend->ReleaseAllDeletes();
+	Backend->ReleaseAllDestroys();
 }
 
 void Device::ResizeSwapChain(uint32 width, uint32 height)

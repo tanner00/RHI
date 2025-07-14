@@ -34,7 +34,7 @@ static constexpr DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 Device::Device(const Platform::Window* window)
 	: FrameFenceValues()
-	, PendingDeletes(Allocator)
+	, PendingDestroys(Allocator)
 	, PendingUploads(Allocator)
 {
 	Dxc::Init();
@@ -149,7 +149,7 @@ Device::Device(const Platform::Window* window)
 
 	for (usize i = 0; i < FramesInFlight; ++i)
 	{
-		PendingDeletes.Add(Array<IUnknown*>(Allocator));
+		PendingDestroys.Add(Array<IUnknown*>(Allocator));
 	}
 
 	ConstantBufferShaderResourceUnorderedAccessViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
@@ -169,7 +169,7 @@ Device::~Device()
 {
 	WaitForIdle();
 
-	ReleaseAllDeletes();
+	ReleaseAllDestroys();
 	for (auto& [source, destination] : PendingUploads)
 	{
 		SAFE_RELEASE(source);
@@ -296,7 +296,7 @@ void Device::Write(Resource* resource, const void* data)
 
 void Device::Submit(const GraphicsContext* context)
 {
-	ReleaseFrameDeletes();
+	ReleaseFrameDestroys();
 	FlushUploads();
 
 	context->Execute(GraphicsQueue);
@@ -331,15 +331,15 @@ void Device::WaitForIdle()
 	++FrameFenceValues[GetFrameIndex()];
 }
 
-void Device::ReleaseAllDeletes()
+void Device::ReleaseAllDestroys()
 {
-	for (Array<IUnknown*>& deletes : PendingDeletes)
+	for (Array<IUnknown*>& destroys : PendingDestroys)
 	{
-		for (IUnknown* resource : deletes)
+		for (IUnknown* resource : destroys)
 		{
 			SAFE_RELEASE(resource);
 		}
-		deletes.Clear();
+		destroys.Clear();
 	}
 }
 
@@ -433,11 +433,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE Device::GetGpu(usize index, ViewType type) const
 	return D3D12_GPU_DESCRIPTOR_HANDLE {};
 }
 
-void Device::AddPendingDelete(IUnknown* pendingDelete)
+void Device::AddPendingDestroy(IUnknown* pendingDestroy)
 {
-	if (pendingDelete)
+	if (pendingDestroy)
 	{
-		PendingDeletes[GetFrameIndex()].Add(pendingDelete);
+		PendingDestroys[GetFrameIndex()].Add(pendingDestroy);
 	}
 }
 
@@ -459,7 +459,7 @@ void Device::FlushUploads()
 	for (const auto& [source, destination] : PendingUploads)
 	{
 		destination->Upload(UploadCommandList, source);
-		PendingDeletes[GetFrameIndex()].Add(source);
+		PendingDestroys[GetFrameIndex()].Add(source);
 	}
 	CHECK_RESULT(UploadCommandList->Close());
 
@@ -469,13 +469,13 @@ void Device::FlushUploads()
 	PendingUploads.Clear();
 }
 
-void Device::ReleaseFrameDeletes()
+void Device::ReleaseFrameDestroys()
 {
-	for (IUnknown* resource : PendingDeletes[GetFrameIndex()])
+	for (IUnknown* resource : PendingDestroys[GetFrameIndex()])
 	{
 		SAFE_RELEASE(resource);
 	}
-	PendingDeletes[GetFrameIndex()].Clear();
+	PendingDestroys[GetFrameIndex()].Clear();
 }
 
 }
