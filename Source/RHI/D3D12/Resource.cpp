@@ -159,8 +159,8 @@ void Resource::WriteTexture(const void* data, Array<UploadPair<ID3D12Resource2*,
 
 	uint64 totalSize = 0;
 
-	const D3D12_RESOURCE_DESC1 description = To(*this);
-	Device->Native->GetCopyableFootprints1(&description, 0, count, 0, layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
+	const D3D12_RESOURCE_DESC1 resourceDescription = To(*this);
+	Device->Native->GetCopyableFootprints1(&resourceDescription, 0, count, 0, layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
 
 	ID3D12Resource2* uploadResource = AllocateResource(Device,
 	{
@@ -254,18 +254,18 @@ void Resource::UploadTexture(ID3D12GraphicsCommandList10* uploadCommandList, ID3
 	const uint16 count = MipMapCount != 0 ? MipMapCount : 1;
 	layouts.GrowToLengthUninitialized(count);
 
-	const D3D12_RESOURCE_DESC1 description = To(*this);
-	Device->Native->GetCopyableFootprints1(&description, 0, count, 0, layouts.GetData(), nullptr, nullptr, nullptr);
+	const D3D12_RESOURCE_DESC1 resourceDescription = To(*this);
+	Device->Native->GetCopyableFootprints1(&resourceDescription, 0, count, 0, layouts.GetData(), nullptr, nullptr, nullptr);
 
 	for (usize subresourceIndex = 0; subresourceIndex < count; ++subresourceIndex)
 	{
-		const D3D12_TEXTURE_COPY_LOCATION sourceLocation = D3D12_TEXTURE_COPY_LOCATION
+		const D3D12_TEXTURE_COPY_LOCATION sourceLocation =
 		{
 			.pResource = source,
 			.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT,
 			.PlacedFootprint = layouts[subresourceIndex],
 		};
-		const D3D12_TEXTURE_COPY_LOCATION destinationLocation = D3D12_TEXTURE_COPY_LOCATION
+		const D3D12_TEXTURE_COPY_LOCATION destinationLocation =
 		{
 			.pResource = Native,
 			.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,

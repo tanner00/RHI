@@ -367,14 +367,14 @@ void GraphicsContext::BuildAccelerationStructure(const AccelerationStructureGeom
 	const D3D12_RAYTRACING_GEOMETRY_DESC geometryDescription = To(geometry);
 	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS inputs = To(geometryDescription);
 
-	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC description =
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC accelerationStructureDescription =
 	{
 		.DestAccelerationStructureData = resultResource->Native->GetGPUVirtualAddress(),
 		.Inputs = inputs,
 		.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
 		.ScratchAccelerationStructureData = scratchResource->Native->GetGPUVirtualAddress(),
 	};
-	CommandList->BuildRaytracingAccelerationStructure(&description, 0, NoPostBuildSizes);
+	CommandList->BuildRaytracingAccelerationStructure(&accelerationStructureDescription, 0, NoPostBuildSizes);
 }
 
 void GraphicsContext::BuildAccelerationStructure(const Buffer& instances,
@@ -383,14 +383,14 @@ void GraphicsContext::BuildAccelerationStructure(const Buffer& instances,
 {
 	CHECK((resultResource->Native->GetGPUVirtualAddress() % D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT) == 0);
 
-	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC description =
+	const D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC accelerationStructureDescription =
 	{
 		.DestAccelerationStructureData = resultResource->Native->GetGPUVirtualAddress(),
 		.Inputs = To(instances),
 		.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
 		.ScratchAccelerationStructureData = scratchResource->Native->GetGPUVirtualAddress(),
 	};
-	CommandList->BuildRaytracingAccelerationStructure(&description, 0, NoPostBuildSizes);
+	CommandList->BuildRaytracingAccelerationStructure(&accelerationStructureDescription, 0, NoPostBuildSizes);
 }
 
 void GraphicsContext::Execute(ID3D12CommandQueue* queue) const
