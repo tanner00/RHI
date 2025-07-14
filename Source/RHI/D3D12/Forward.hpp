@@ -1,6 +1,6 @@
 #pragma once
 
-#define RHI_BACKEND(name) D3D12::##name
+#define RHI_BACKEND(name) D3D12::name
 
 struct ID3D12CommandAllocator;
 struct ID3D12CommandQueue;
