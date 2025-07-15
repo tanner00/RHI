@@ -39,7 +39,7 @@ public:
 
 	void Draw(usize vertexCount) const;
 	void DrawIndexed(usize indexCount) const;
-	void Dispatch(usize threadGroupCountX, usize threadGroupCountY, usize threadGroupCountZ) const;
+	void Dispatch(uint32 threadGroupCountX, uint32 threadGroupCountY, uint32 threadGroupCountZ) const;
 
 	void Copy(const Resource* destination, const Resource* source) const;
 

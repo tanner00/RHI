@@ -101,7 +101,7 @@ void GraphicsContext::DrawIndexed(usize indexCount) const
 	Backend->DrawIndexed(indexCount);
 }
 
-void GraphicsContext::Dispatch(usize threadGroupCountX, usize threadGroupCountY, usize threadGroupCountZ) const
+void GraphicsContext::Dispatch(uint32 threadGroupCountX, uint32 threadGroupCountY, uint32 threadGroupCountZ) const
 {
 	Backend->Dispatch(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }

@@ -273,9 +273,9 @@ void GraphicsContext::DrawIndexed(usize indexCount) const
 	CommandList->DrawIndexedInstanced(static_cast<uint32>(indexCount), 1, 0, 0, 0);
 }
 
-void GraphicsContext::Dispatch(usize threadGroupCountX, usize threadGroupCountY, usize threadGroupCountZ) const
+void GraphicsContext::Dispatch(uint32 threadGroupCountX, uint32 threadGroupCountY, uint32 threadGroupCountZ) const
 {
-	CommandList->Dispatch(static_cast<uint32>(threadGroupCountX), static_cast<uint32>(threadGroupCountY), static_cast<uint32>(threadGroupCountZ));
+	CommandList->Dispatch(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
 void GraphicsContext::Copy(const Resource* destination, const Resource* source) const
