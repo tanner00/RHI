@@ -11,8 +11,6 @@
 #include "Shader.hpp"
 #include "TextureView.hpp"
 
-#include "Luft/Error.hpp"
-
 #include <dxgi1_6.h>
 #include <dxgidebug.h>
 
@@ -37,7 +35,7 @@ Device::Device(const Platform::Window* window)
 	, PendingDestroys(Allocator)
 	, PendingUploads(Allocator)
 {
-	Dxc::Init();
+	DXC::Init();
 
 	IDXGIFactory7* dxgiFactory = nullptr;
 	uint32 dxgiFlags = 0;
@@ -190,7 +188,7 @@ Device::~Device()
 	SAFE_RELEASE(GraphicsQueue);
 	SAFE_RELEASE(Native);
 
-	Dxc::Shutdown();
+	DXC::Shutdown();
 
 #if DEBUG
 	IDXGIDebug1* dxgiDebug = nullptr;

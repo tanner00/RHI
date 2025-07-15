@@ -14,7 +14,7 @@ ComputePipeline::ComputePipeline(const ComputePipelineDescription& description, 
 	const Shader* backendShader = Stage.Backend;
 
 	HashTable<String, D3D12_ROOT_PARAMETER1> apiRootParameters(BindingBucketCount, Allocator);
-	Dxc::ReflectRootParameters(backendShader->Reflection, &RootParameters, &apiRootParameters);
+	DXC::ReflectRootParameters(backendShader->Reflection, &RootParameters, &apiRootParameters);
 
 	Array<D3D12_ROOT_PARAMETER1> rootParametersList(apiRootParameters.GetCount(), Allocator);
 	for (auto& [_, rootParameter] : apiRootParameters)
@@ -74,7 +74,7 @@ ComputePipeline::ComputePipeline(const ComputePipelineDescription& description, 
 
 void ComputePipeline::SetConstantBuffer(ID3D12GraphicsCommandList10* commandList, StringView name, const Resource* buffer, usize offset)
 {
-	const Dxc::RootParameter& rootParameter = RootParameters[name];
+	const DXC::RootParameter& rootParameter = RootParameters[name];
 
 	commandList->SetComputeRootConstantBufferView
 	(
@@ -88,7 +88,7 @@ void ComputePipeline::SetConstants(ID3D12GraphicsCommandList10* commandList, con
 	static const StringView name = "RootConstants"_view;
 	CHECK(RootParameters.Contains(name));
 
-	const Dxc::RootParameter& rootParameter = RootParameters[name];
+	const DXC::RootParameter& rootParameter = RootParameters[name];
 
 	commandList->SetComputeRoot32BitConstants
 	(

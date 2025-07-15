@@ -11,8 +11,6 @@
 #include "Shader.hpp"
 #include "TextureView.hpp"
 
-#include "Luft/Platform.hpp"
-
 namespace RHI
 {
 

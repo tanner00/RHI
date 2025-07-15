@@ -22,7 +22,7 @@ public:
 
 }
 
-namespace Dxc
+namespace DXC
 {
 
 struct RootParameter

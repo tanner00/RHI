@@ -21,13 +21,13 @@ GraphicsPipeline::GraphicsPipeline(const GraphicsPipelineDescription& descriptio
 	const Shader* backendPixelShader = usesPixelShader ? Stages[ShaderStage::Pixel].Backend : nullptr;
 
 	Array<D3D12_INPUT_ELEMENT_DESC> inputElements(Allocator);
-	Dxc::ReflectInputElements(backendVertexShader->Reflection, inputElements);
+	DXC::ReflectInputElements(backendVertexShader->Reflection, inputElements);
 
 	HashTable<String, D3D12_ROOT_PARAMETER1> apiRootParameters(BindingBucketCount, Allocator);
-	Dxc::ReflectRootParameters(backendVertexShader->Reflection, &RootParameters, &apiRootParameters);
+	DXC::ReflectRootParameters(backendVertexShader->Reflection, &RootParameters, &apiRootParameters);
 	if (usesPixelShader)
 	{
-		Dxc::ReflectRootParameters(backendPixelShader->Reflection, &RootParameters, &apiRootParameters);
+		DXC::ReflectRootParameters(backendPixelShader->Reflection, &RootParameters, &apiRootParameters);
 	}
 
 	Array<D3D12_ROOT_PARAMETER1> rootParametersList(apiRootParameters.GetCount(), Allocator);
@@ -189,7 +189,7 @@ void GraphicsPipeline::SetConstants(ID3D12GraphicsCommandList10* commandList, co
 	static const StringView name = "RootConstants"_view;
 	CHECK(RootParameters.Contains(name));
 
-	const Dxc::RootParameter& rootParameter = RootParameters[name];
+	const DXC::RootParameter& rootParameter = RootParameters[name];
 
 	commandList->SetGraphicsRoot32BitConstants
 	(

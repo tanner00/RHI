@@ -26,7 +26,7 @@ public:
 	virtual void SetConstantBuffer(ID3D12GraphicsCommandList10* commandList, StringView name, const Resource* buffer, usize offset) = 0;
 	virtual void SetConstants(ID3D12GraphicsCommandList10* commandList, const void* data) = 0;
 
-	HashTable<String, Dxc::RootParameter> RootParameters;
+	HashTable<String, DXC::RootParameter> RootParameters;
 	ID3D12RootSignature* RootSignature;
 	ID3D12PipelineState* PipelineState;
 	Device* Device;

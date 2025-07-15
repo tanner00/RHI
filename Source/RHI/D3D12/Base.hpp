@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Luft/Base.hpp"
+#include "Luft/Platform.hpp"
 
 #include "D3D12/d3d12.h"
 

@@ -17,7 +17,7 @@ static void ToWideChar(StringView input, wchar_t* output, usize outputLength)
 										 "Failed to convert to wide string!");
 }
 
-namespace Dxc
+namespace DXC
 {
 
 static IDxcCompiler3* Compiler = nullptr;
@@ -243,11 +243,11 @@ static IDxcResult* CompileShader(StringView filePath, RHI::ShaderStage stage, Ar
 #if DEBUG
 	if (FAILED(dxcResult))
 	{
-		IDxcBlobEncoding* dxcErrorBlob = nullptr;
-		dxcResult = compileResult->GetErrorBuffer(&dxcErrorBlob);
-		CHECK(SUCCEEDED(dxcResult) && dxcErrorBlob);
+		IDxcBlobEncoding* errorBlob = nullptr;
+		dxcResult = compileResult->GetErrorBuffer(&errorBlob);
+		CHECK(SUCCEEDED(dxcResult) && errorBlob);
 		char errorMessage[2048];
-		Platform::StringPrint("Shader Compiler: %s", errorMessage, sizeof(errorMessage), dxcErrorBlob->GetBufferPointer());
+		Platform::StringPrint("Shader Compiler: %s", errorMessage, sizeof(errorMessage), errorBlob->GetBufferPointer());
 		Platform::FatalError(errorMessage);
 	}
 #endif
@@ -263,7 +263,7 @@ Shader::Shader(const ShaderDescription& description, D3D12::Device* device)
 	: ShaderDescription(description)
 	, Device(device)
 {
-	IDxcResult* compileResult = Dxc::CompileShader(FilePath, Stage, Defines);
+	IDxcResult* compileResult = DXC::CompileShader(FilePath, Stage, Defines);
 
 	CHECK_RESULT(compileResult->GetResult(&Blob));
 
@@ -276,7 +276,7 @@ Shader::Shader(const ShaderDescription& description, D3D12::Device* device)
 		.Size = reflectionBlob->GetBufferSize(),
 		.Encoding = 0,
 	};
-	CHECK_RESULT(Dxc::Utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&Reflection)));
+	CHECK_RESULT(DXC::Utils->CreateReflection(&reflectionBuffer, IID_PPV_ARGS(&Reflection)));
 
 	SAFE_RELEASE(reflectionBlob);
 	SAFE_RELEASE(compileResult);
