@@ -22,15 +22,15 @@ public:
 	explicit Device(const Platform::Window* window);
 	~Device();
 
-	AccelerationStructure Create(const AccelerationStructureDescription& description);
-	BufferView Create(const BufferViewDescription& description);
-	ComputePipeline Create(const ComputePipelineDescription& description);
-	GraphicsContext Create(const GraphicsContextDescription& description);
-	GraphicsPipeline Create(const GraphicsPipelineDescription& description);
-	Resource Create(const ResourceDescription& description);
-	Sampler Create(const SamplerDescription& description);
-	Shader Create(const ShaderDescription& description);
-	TextureView Create(const TextureViewDescription& description);
+	AccelerationStructure Create(const AccelerationStructureDescription& description) const;
+	BufferView Create(const BufferViewDescription& description) const;
+	ComputePipeline Create(const ComputePipelineDescription& description) const;
+	GraphicsContext Create(const GraphicsContextDescription& description) const;
+	GraphicsPipeline Create(const GraphicsPipelineDescription& description) const;
+	Resource Create(const ResourceDescription& description) const;
+	Sampler Create(const SamplerDescription& description) const;
+	Shader Create(const ShaderDescription& description) const;
+	TextureView Create(const TextureViewDescription& description) const;
 
 	void Destroy(AccelerationStructure* accelerationStructure) const;
 	void Destroy(BufferView* bufferView) const;
@@ -49,7 +49,7 @@ public:
 
 	void Write(const Resource* resource, const void* data);
 
-	void Submit(const GraphicsContext& context);
+	void Submit(const GraphicsContext& context) const;
 	void Present();
 	void WaitForIdle();
 

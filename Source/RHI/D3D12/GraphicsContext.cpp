@@ -130,7 +130,7 @@ void GraphicsContext::End()
 
 	const uint64 start = times[0];
 	const uint64 end = times[1];
-	MostRecentGpuTime = (start < end) ? (static_cast<double>(end - start) / Device->TimestampFrequency) : 0.0;
+	MostRecentGpuTime = (start < end) ? (static_cast<double>(end - start) / Device->TimeStampFrequency) : 0.0;
 #endif
 }
 

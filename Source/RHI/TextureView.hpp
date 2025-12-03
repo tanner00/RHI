@@ -9,8 +9,8 @@ namespace RHI
 
 struct TextureViewDescription
 {
-	Resource Resource;
 	ViewType Type;
+	Resource Resource;
 };
 
 class TextureView final : public TextureViewDescription

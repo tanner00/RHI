@@ -27,47 +27,47 @@ Device::~Device()
 	Backend = nullptr;
 }
 
-AccelerationStructure Device::Create(const AccelerationStructureDescription& description)
+AccelerationStructure Device::Create(const AccelerationStructureDescription& description) const
 {
 	return AccelerationStructure(description, Backend->Create(description));
 }
 
-BufferView Device::Create(const BufferViewDescription& description)
+BufferView Device::Create(const BufferViewDescription& description) const
 {
 	return BufferView(description, Backend->Create(description));
 }
 
-ComputePipeline Device::Create(const ComputePipelineDescription& description)
+ComputePipeline Device::Create(const ComputePipelineDescription& description) const
 {
 	return ComputePipeline(description, Backend->Create(description));
 }
 
-GraphicsContext Device::Create(const GraphicsContextDescription& description)
+GraphicsContext Device::Create(const GraphicsContextDescription& description) const
 {
 	return GraphicsContext(description, Backend->Create(description));
 }
 
-GraphicsPipeline Device::Create(const GraphicsPipelineDescription& description)
+GraphicsPipeline Device::Create(const GraphicsPipelineDescription& description) const
 {
 	return GraphicsPipeline(description, Backend->Create(description));
 }
 
-Resource Device::Create(const ResourceDescription& description)
+Resource Device::Create(const ResourceDescription& description) const
 {
 	return Resource(description, Backend->Create(description));
 }
 
-Sampler Device::Create(const SamplerDescription& description)
+Sampler Device::Create(const SamplerDescription& description) const
 {
 	return Sampler(description, Backend->Create(description));
 }
 
-Shader Device::Create(const ShaderDescription& description)
+Shader Device::Create(const ShaderDescription& description) const
 {
 	return Shader(description, Backend->Create(description));
 }
 
-TextureView Device::Create(const TextureViewDescription& description)
+TextureView Device::Create(const TextureViewDescription& description) const
 {
 	return TextureView(description, Backend->Create(description));
 }
@@ -151,7 +151,7 @@ void Device::Write(const Resource* resource, const void* data)
 	Backend->Write(resource->Backend, data);
 }
 
-void Device::Submit(const GraphicsContext& context)
+void Device::Submit(const GraphicsContext& context) const
 {
 	Backend->Submit(context.Backend);
 }

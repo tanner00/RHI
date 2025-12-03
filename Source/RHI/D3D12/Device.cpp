@@ -158,9 +158,9 @@ Device::Device(const Platform::Window* window)
 	DepthStencilViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, false, this);
 	SamplerViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_SAMPLER_HEAP_SIZE, D3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER, true, this);
 
-	uint64 timestampFrequency;
-	CHECK_RESULT(GraphicsQueue->GetTimestampFrequency(&timestampFrequency));
-	TimestampFrequency = static_cast<double>(timestampFrequency);
+	uint64 timeStampFrequency;
+	CHECK_RESULT(GraphicsQueue->GetTimestampFrequency(&timeStampFrequency));
+	TimeStampFrequency = static_cast<double>(timeStampFrequency);
 }
 
 Device::~Device()

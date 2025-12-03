@@ -81,7 +81,7 @@ public:
 	ViewHeap DepthStencilViewHeap;
 	ViewHeap SamplerViewHeap;
 
-	double TimestampFrequency;
+	double TimeStampFrequency;
 };
 
 }
