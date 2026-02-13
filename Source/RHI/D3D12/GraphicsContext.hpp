@@ -60,7 +60,7 @@ public:
 	void Execute(ID3D12CommandQueue* queue) const;
 
 	ID3D12CommandAllocator* CommandAllocators[FramesInFlight];
-	ID3D12GraphicsCommandList10* CommandList;
+	ID3D12GraphicsCommandList10* Native;
 
 	Pipeline* CurrentPipeline;
 	Device* Device;

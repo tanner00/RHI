@@ -24,7 +24,7 @@ GraphicsContext::GraphicsContext(const GraphicsContextDescription& description, 
 	{
 		CHECK_RESULT(Device->Native->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)));
 	}
-	CHECK_RESULT(Device->Native->CreateCommandList1(0, type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&CommandList)));
+	CHECK_RESULT(Device->Native->CreateCommandList1(0, type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&Native)));
 
 #if !RELEASE
 	static constexpr D3D12_QUERY_HEAP_DESC frameTimeQueryHeapDescription =
@@ -59,8 +59,7 @@ GraphicsContext::~GraphicsContext()
 	FrameTimeQueryHeap = nullptr;
 #endif
 
-	Device->AddPendingDestroy(CommandList);
-	CommandList = nullptr;
+	SAFE_RELEASE(Native);
 
 	for (ID3D12CommandAllocator*& commandAllocator : CommandAllocators)
 	{
@@ -76,10 +75,10 @@ void GraphicsContext::Begin() const
 	const usize backBufferIndex = Device->GetFrameIndex();
 
 	CHECK_RESULT(CommandAllocators[backBufferIndex]->Reset());
-	CHECK_RESULT(CommandList->Reset(CommandAllocators[backBufferIndex], nullptr));
+	CHECK_RESULT(Native->Reset(CommandAllocators[backBufferIndex], nullptr));
 
 #if !RELEASE
-	CommandList->EndQuery(FrameTimeQueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0);
+	Native->EndQuery(FrameTimeQueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 0);
 #endif
 
 	ID3D12DescriptorHeap* heaps[] =
@@ -87,9 +86,9 @@ void GraphicsContext::Begin() const
 		Device->ConstantBufferShaderResourceUnorderedAccessViewHeap.Native,
 		Device->SamplerViewHeap.Native,
 	};
-	CommandList->SetDescriptorHeaps(ARRAY_COUNT(heaps), heaps);
+	Native->SetDescriptorHeaps(ARRAY_COUNT(heaps), heaps);
 
-	CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	Native->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 }
 
 void GraphicsContext::End()
@@ -97,19 +96,19 @@ void GraphicsContext::End()
 #if !RELEASE
 	ID3D12Resource2* frameTimeQueryResourceNative = FrameTimeQueryResource->Native;
 
-	CommandList->EndQuery(FrameTimeQueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 1);
+	Native->EndQuery(FrameTimeQueryHeap, D3D12_QUERY_TYPE_TIMESTAMP, 1);
 
 	static uint32 currentFrameResolveIndex = 0;
 	const uint64 currentFrameResolveOffset = currentFrameResolveIndex * FrameTimeQueryCount * sizeof(uint64);
-	CommandList->ResolveQueryData(FrameTimeQueryHeap,
-								  D3D12_QUERY_TYPE_TIMESTAMP,
-								  0,
-								  FrameTimeQueryCount,
-								  frameTimeQueryResourceNative,
-								  currentFrameResolveOffset);
+	Native->ResolveQueryData(FrameTimeQueryHeap,
+							 D3D12_QUERY_TYPE_TIMESTAMP,
+							 0,
+							 FrameTimeQueryCount,
+							 frameTimeQueryResourceNative,
+							 currentFrameResolveOffset);
 #endif
 
-	CHECK_RESULT(CommandList->Close());
+	CHECK_RESULT(Native->Close());
 
 #if !RELEASE
 	const uint32 readbackFrameIndex = (currentFrameResolveIndex + 1) % (FramesInFlight + 1);
@@ -153,8 +152,8 @@ void GraphicsContext::SetViewport(uint32 width, uint32 height) const
 		static_cast<int32>(height),
 	};
 
-	CommandList->RSSetViewports(1, &viewport);
-	CommandList->RSSetScissorRects(1, &rect);
+	Native->RSSetViewports(1, &viewport);
+	Native->RSSetScissorRects(1, &rect);
 }
 
 void GraphicsContext::SetRenderTarget(const TextureView* renderTarget) const
@@ -163,10 +162,10 @@ void GraphicsContext::SetRenderTarget(const TextureView* renderTarget) const
 	switch (renderTarget->Type)
 	{
 	case ViewType::RenderTarget:
-		CommandList->OMSetRenderTargets(1, &cpu, false, nullptr);
+		Native->OMSetRenderTargets(1, &cpu, false, nullptr);
 		break;
 	case ViewType::DepthStencil:
-		CommandList->OMSetRenderTargets(0, nullptr, false, &cpu);
+		Native->OMSetRenderTargets(0, nullptr, false, &cpu);
 		break;
 	default:
 		CHECK(false);
@@ -177,7 +176,7 @@ void GraphicsContext::SetRenderTarget(const TextureView* renderTarget, const Tex
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE renderTargetCpu = renderTarget->GetCpu();
 	const D3D12_CPU_DESCRIPTOR_HANDLE depthStencilCpu = depthStencil->GetCpu();
-	CommandList->OMSetRenderTargets(1, &renderTargetCpu, false, &depthStencilCpu);
+	Native->OMSetRenderTargets(1, &renderTargetCpu, false, &depthStencilCpu);
 }
 
 void GraphicsContext::SetRenderTargets(const ArrayView<const TextureView*>& renderTargets, const TextureView* depthStencil) const
@@ -190,19 +189,19 @@ void GraphicsContext::SetRenderTargets(const ArrayView<const TextureView*>& rend
 		renderTargetCpus[renderTargetIndex] = renderTargets[renderTargetIndex]->GetCpu();
 	}
 	const D3D12_CPU_DESCRIPTOR_HANDLE depthStencilCpu = depthStencil->GetCpu();
-	CommandList->OMSetRenderTargets(static_cast<uint32>(renderTargets.GetLength()), renderTargetCpus, false, &depthStencilCpu);
+	Native->OMSetRenderTargets(static_cast<uint32>(renderTargets.GetLength()), renderTargetCpus, false, &depthStencilCpu);
 }
 
 void GraphicsContext::SetDepthRenderTarget(const TextureView* depthStencil) const
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = depthStencil->GetCpu();
-	CommandList->OMSetRenderTargets(1, nullptr, false, &cpu);
+	Native->OMSetRenderTargets(1, nullptr, false, &cpu);
 }
 
 void GraphicsContext::ClearRenderTarget(const TextureView* renderTarget) const
 {
 	const D3D12_CPU_DESCRIPTOR_HANDLE cpu = renderTarget->GetCpu();
-	CommandList->ClearRenderTargetView(cpu, reinterpret_cast<const float*>(&renderTarget->Resource.ColorClear), 0, nullptr);
+	Native->ClearRenderTargetView(cpu, reinterpret_cast<const float*>(&renderTarget->Resource.ColorClear), 0, nullptr);
 }
 
 void GraphicsContext::ClearDepthStencil(const TextureView* depthStencil) const
@@ -211,20 +210,20 @@ void GraphicsContext::ClearDepthStencil(const TextureView* depthStencil) const
 	const D3D12_CLEAR_FLAGS clearFlags = IsStencilFormat(depthStencil->Resource.Format)
 									   ? (D3D12_CLEAR_FLAG_DEPTH | D3D12_CLEAR_FLAG_STENCIL)
 									   : D3D12_CLEAR_FLAG_DEPTH;
-	CommandList->ClearDepthStencilView(cpu, clearFlags, depthStencil->Resource.DepthClear, 0, 0, nullptr);
+	Native->ClearDepthStencilView(cpu, clearFlags, depthStencil->Resource.DepthClear, 0, 0, nullptr);
 }
 
 void GraphicsContext::SetPipeline(GraphicsPipeline* pipeline)
 {
-	CommandList->SetGraphicsRootSignature(pipeline->RootSignature);
-	CommandList->SetPipelineState(pipeline->PipelineState);
+	Native->SetGraphicsRootSignature(pipeline->RootSignature);
+	Native->SetPipelineState(pipeline->PipelineState);
 	CurrentPipeline = pipeline;
 }
 
 void GraphicsContext::SetPipeline(ComputePipeline* pipeline)
 {
-	CommandList->SetComputeRootSignature(pipeline->RootSignature);
-	CommandList->SetPipelineState(pipeline->PipelineState);
+	Native->SetComputeRootSignature(pipeline->RootSignature);
+	Native->SetPipelineState(pipeline->PipelineState);
 	CurrentPipeline = pipeline;
 }
 
@@ -236,7 +235,7 @@ void GraphicsContext::SetVertexBuffer(usize slot, const SubBuffer& vertexBuffer)
 		.SizeInBytes = static_cast<uint32>(vertexBuffer.Size),
 		.StrideInBytes = static_cast<uint32>(vertexBuffer.Stride),
 	};
-	CommandList->IASetVertexBuffers(static_cast<uint32>(slot), 1, &view);
+	Native->IASetVertexBuffers(static_cast<uint32>(slot), 1, &view);
 }
 
 void GraphicsContext::SetIndexBuffer(const SubBuffer& indexBuffer) const
@@ -248,39 +247,39 @@ void GraphicsContext::SetIndexBuffer(const SubBuffer& indexBuffer) const
 		.SizeInBytes = static_cast<uint32>(indexBuffer.Size),
 		.Format = indexBuffer.Stride == sizeof(uint16) ? DXGI_FORMAT_R16_UINT : DXGI_FORMAT_R32_UINT,
 	};
-	CommandList->IASetIndexBuffer(&view);
+	Native->IASetIndexBuffer(&view);
 }
 
 void GraphicsContext::SetConstantBuffer(StringView name, const Resource* buffer, usize offset) const
 {
 	CHECK(CurrentPipeline);
-	CurrentPipeline->SetConstantBuffer(CommandList, name, buffer, offset);
+	CurrentPipeline->SetConstantBuffer(Native, name, buffer, offset);
 }
 
 void GraphicsContext::SetRootConstants(const void* data) const
 {
 	CHECK(CurrentPipeline);
-	CurrentPipeline->SetConstants(CommandList, data);
+	CurrentPipeline->SetConstants(Native, data);
 }
 
 void GraphicsContext::Draw(usize vertexCount) const
 {
-	CommandList->DrawInstanced(static_cast<uint32>(vertexCount), 1, 0, 0);
+	Native->DrawInstanced(static_cast<uint32>(vertexCount), 1, 0, 0);
 }
 
 void GraphicsContext::DrawIndexed(usize indexCount) const
 {
-	CommandList->DrawIndexedInstanced(static_cast<uint32>(indexCount), 1, 0, 0, 0);
+	Native->DrawIndexedInstanced(static_cast<uint32>(indexCount), 1, 0, 0, 0);
 }
 
 void GraphicsContext::Dispatch(uint32 threadGroupCountX, uint32 threadGroupCountY, uint32 threadGroupCountZ) const
 {
-	CommandList->Dispatch(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
+	Native->Dispatch(threadGroupCountX, threadGroupCountY, threadGroupCountZ);
 }
 
 void GraphicsContext::Copy(const Resource* destination, const Resource* source) const
 {
-	CommandList->CopyResource(destination->Native, source->Native);
+	Native->CopyResource(destination->Native, source->Native);
 }
 
 void GraphicsContext::GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const
@@ -298,7 +297,7 @@ void GraphicsContext::GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair
 		.NumBarriers = 1,
 		.pGlobalBarriers = &globalBarrier,
 	};
-	CommandList->Barrier(1, &barrierGroup);
+	Native->Barrier(1, &barrierGroup);
 }
 
 void GraphicsContext::BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access, const Resource* buffer) const
@@ -319,7 +318,7 @@ void GraphicsContext::BufferBarrier(BarrierPair<BarrierStage> stage, BarrierPair
 		.NumBarriers = 1,
 		.pBufferBarriers = &bufferBarrier,
 	};
-	CommandList->Barrier(1, &barrierGroup);
+	Native->Barrier(1, &barrierGroup);
 }
 
 void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage,
@@ -355,7 +354,7 @@ void GraphicsContext::TextureBarrier(BarrierPair<BarrierStage> stage,
 		.NumBarriers = 1,
 		.pTextureBarriers = &textureBarrier,
 	};
-	CommandList->Barrier(1, &barrierGroup);
+	Native->Barrier(1, &barrierGroup);
 }
 
 void GraphicsContext::BuildAccelerationStructure(const AccelerationStructureGeometry& geometry,
@@ -374,7 +373,7 @@ void GraphicsContext::BuildAccelerationStructure(const AccelerationStructureGeom
 		.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
 		.ScratchAccelerationStructureData = scratchResource->Native->GetGPUVirtualAddress(),
 	};
-	CommandList->BuildRaytracingAccelerationStructure(&accelerationStructureDescription, 0, NoPostBuildSizes);
+	Native->BuildRaytracingAccelerationStructure(&accelerationStructureDescription, 0, NoPostBuildSizes);
 }
 
 void GraphicsContext::BuildAccelerationStructure(const Buffer& instances,
@@ -390,12 +389,12 @@ void GraphicsContext::BuildAccelerationStructure(const Buffer& instances,
 		.SourceAccelerationStructureData = D3D12_GPU_VIRTUAL_ADDRESS { 0 },
 		.ScratchAccelerationStructureData = scratchResource->Native->GetGPUVirtualAddress(),
 	};
-	CommandList->BuildRaytracingAccelerationStructure(&accelerationStructureDescription, 0, NoPostBuildSizes);
+	Native->BuildRaytracingAccelerationStructure(&accelerationStructureDescription, 0, NoPostBuildSizes);
 }
 
 void GraphicsContext::Execute(ID3D12CommandQueue* queue) const
 {
-	ID3D12CommandList* commands[] = { CommandList };
+	ID3D12CommandList* commands[] = { Native };
 	queue->ExecuteCommandLists(ARRAY_COUNT(commands), commands);
 }
 

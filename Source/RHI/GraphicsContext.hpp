@@ -24,11 +24,20 @@ struct GraphicsContextDescription
 class GraphicsContext final : public GraphicsContextDescription
 {
 public:
+	GraphicsContext()
+		: GraphicsContextDescription()
+		, Backend(nullptr)
+	{
+	}
+
 	GraphicsContext(const GraphicsContextDescription& description, RHI_BACKEND(GraphicsContext)* backend)
 		: GraphicsContextDescription(description)
 		, Backend(backend)
 	{
 	}
+
+	static GraphicsContext Invalid() { return {}; }
+	bool IsValid() const { return Backend != nullptr; }
 
 	void Begin() const;
 	void End();
