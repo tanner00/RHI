@@ -35,6 +35,8 @@ Device::Device(const Platform::Window* window)
 	, PendingDestroys(Allocator)
 	, PendingUploads(Allocator)
 {
+	CHECK(window);
+
 	DXC::Init();
 
 	IDXGIFactory7* dxgiFactory = nullptr;
