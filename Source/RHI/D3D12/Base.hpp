@@ -31,11 +31,4 @@ inline constexpr const D3D12_RANGE* WriteEverything = nullptr;
 
 inline constexpr const D3D12_RAYTRACING_ACCELERATION_STRUCTURE_POSTBUILD_INFO_DESC* NoPostBuildSizes = nullptr;
 
-template<typename S, typename D>
-struct UploadPair
-{
-	S Source;
-	D Destination;
-};
-
 }

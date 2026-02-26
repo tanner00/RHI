@@ -13,15 +13,15 @@ public:
 	Resource(const ResourceDescription& description, Device* device);
 	~Resource();
 
-	void Write(const void* data, Array<UploadPair<ID3D12Resource2*, Resource*>>* pendingUploads);
-	void WriteBuffer(const void* data, Array<UploadPair<ID3D12Resource2*, Resource*>>* pendingUploads);
-	void WriteTexture(const void* data, Array<UploadPair<ID3D12Resource2*, Resource*>>* pendingUploads);
-	void WriteAccelerationStructureInstances(const void* data);
+	void Write(const ResourceDescription& format, const void* data);
+	void WriteBuffer(const ResourceDescription& format, const void* data);
+	void WriteTexture(const ResourceDescription& format, const void* data);
+	void WriteAccelerationStructureInstances(const ResourceDescription& format, const void* data);
 
-	void Upload(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const;
-	void UploadBuffer(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const;
-	void UploadTexture(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const;
-	void UploadAccelerationStructureInstances(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const;
+	void Copy(ID3D12GraphicsCommandList10* commandList, ID3D12Resource2* source) const;
+	void CopyBuffer(ID3D12GraphicsCommandList10* commandList, ID3D12Resource2* source) const;
+	void CopyTexture(ID3D12GraphicsCommandList10* commandList, ID3D12Resource2* source) const;
+	void CopyAccelerationStructureInstances(ID3D12GraphicsCommandList10* commandList, ID3D12Resource2* source) const;
 
 	ID3D12Resource2* Native;
 	Device* Device;

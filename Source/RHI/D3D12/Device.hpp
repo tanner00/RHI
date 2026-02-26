@@ -5,8 +5,6 @@
 
 #include "RHI/RHI.hpp"
 
-#include "Luft/Array.hpp"
-
 namespace RHI::D3D12
 {
 
@@ -21,6 +19,7 @@ public:
 	ComputePipeline* Create(const ComputePipelineDescription& description);
 	GraphicsContext* Create(const GraphicsContextDescription& description);
 	GraphicsPipeline* Create(const GraphicsPipelineDescription& description);
+	Heap* Create(const HeapDescription& description);
 	Resource* Create(const ResourceDescription& description);
 	Sampler* Create(const SamplerDescription& description);
 	Shader* Create(const ShaderDescription& description);
@@ -31,22 +30,24 @@ public:
 	void Destroy(ComputePipeline* computePipeline) const;
 	void Destroy(GraphicsContext* graphicsContext) const;
 	void Destroy(GraphicsPipeline* graphicsPipeline) const;
+	void Destroy(Heap* heap);
 	void Destroy(Resource* resource) const;
 	void Destroy(Sampler* sampler) const;
 	void Destroy(Shader* shader) const;
 	void Destroy(TextureView* textureView) const;
 
-	void Write(Resource* resource, const void* data);
+	void Write(Resource* write, const ResourceDescription& format, const void* data) const;
 
-	void Submit(const GraphicsContext* context);
+	void Submit(const GraphicsContext* context) const;
 	void Present();
 	void WaitForIdle();
-
-	void ReleaseAllDestroys();
 
 	void ResizeSwapChain(uint32 width, uint32 height);
 
 	usize GetFrameIndex() const;
+
+	usize GetResourceSize(const ResourceDescription& description) const;
+	usize GetResourceAlignment(const ResourceDescription& description) const;
 
 	AccelerationStructureSize GetAccelerationStructureSize(const AccelerationStructureGeometry& geometry) const;
 	AccelerationStructureSize GetAccelerationStructureSize(const Buffer& instances) const;
@@ -55,12 +56,7 @@ public:
 	D3D12_CPU_DESCRIPTOR_HANDLE GetCpu(usize index, ViewType type) const;
 	D3D12_GPU_DESCRIPTOR_HANDLE GetGpu(usize index, ViewType type) const;
 
-	void AddPendingDestroy(IUnknown* pendingDestroy);
 	ID3D12Resource2* GetSwapChainResource(usize backBufferIndex) const;
-
-	void FlushUploads();
-
-	void ReleaseFrameDestroys();
 
 	ID3D12Device11* Native;
 	IDXGISwapChain4* SwapChain;
@@ -69,12 +65,6 @@ public:
 
 	ID3D12Fence1* FrameFence;
 	uint64 FrameFenceValues[FramesInFlight];
-
-	ID3D12CommandAllocator* UploadCommandAllocators[FramesInFlight];
-	ID3D12GraphicsCommandList10* UploadCommandList;
-
-	Array<Array<IUnknown*>> PendingDestroys;
-	Array<UploadPair<ID3D12Resource2*, Resource*>> PendingUploads;
 
 	ViewHeap ConstantBufferShaderResourceUnorderedAccessViewHeap;
 	ViewHeap RenderTargetViewHeap;

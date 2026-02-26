@@ -8,6 +8,7 @@
 #include "D3D12/Device.hpp"
 #include "D3D12/GraphicsContext.hpp"
 #include "D3D12/GraphicsPipeline.hpp"
+#include "D3D12/Heap.hpp"
 #include "D3D12/Resource.hpp"
 #include "D3D12/Sampler.hpp"
 #include "D3D12/TextureView.hpp"
@@ -50,6 +51,11 @@ GraphicsContext Device::Create(const GraphicsContextDescription& description) co
 GraphicsPipeline Device::Create(const GraphicsPipelineDescription& description) const
 {
 	return GraphicsPipeline(description, Backend->Create(description));
+}
+
+Heap Device::Create(const HeapDescription& description) const
+{
+	return Heap(description, Backend->Create(description));
 }
 
 Resource Device::Create(const ResourceDescription& description) const
@@ -102,6 +108,12 @@ void Device::Destroy(GraphicsPipeline* graphicsPipeline) const
 	graphicsPipeline->Backend = nullptr;
 }
 
+void Device::Destroy(Heap* heap) const
+{
+	Backend->Destroy(heap->Backend);
+	heap->Backend = nullptr;
+}
+
 void Device::Destroy(Resource* resource) const
 {
 	Backend->Destroy(resource->Backend);
@@ -146,9 +158,9 @@ uint32 Device::Get(const TextureView& texture) const
 	return texture.Backend->HeapIndex;
 }
 
-void Device::Write(const Resource* resource, const void* data)
+void Device::Write(const Resource* write, const ResourceDescription& format, const void* data) const
 {
-	Backend->Write(resource->Backend, data);
+	Backend->Write(write->Backend, format, data);
 }
 
 void Device::Submit(const GraphicsContext& context) const
@@ -166,11 +178,6 @@ void Device::WaitForIdle()
 	Backend->WaitForIdle();
 }
 
-void Device::ReleaseAllDestroys()
-{
-	Backend->ReleaseAllDestroys();
-}
-
 void Device::ResizeSwapChain(uint32 width, uint32 height)
 {
 	Backend->ResizeSwapChain(width, height);
@@ -179,6 +186,16 @@ void Device::ResizeSwapChain(uint32 width, uint32 height)
 usize Device::GetFrameIndex() const
 {
 	return Backend->GetFrameIndex();
+}
+
+usize Device::GetResourceSize(const ResourceDescription& description) const
+{
+	return Backend->GetResourceSize(description);
+}
+
+usize Device::GetResourceAlignment(const ResourceDescription& description) const
+{
+	return Backend->GetResourceAlignment(description);
 }
 
 AccelerationStructureSize Device::GetAccelerationStructureSize(const AccelerationStructureGeometry& geometry) const

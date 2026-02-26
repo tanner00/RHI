@@ -2,6 +2,7 @@
 
 #include "Barrier.hpp"
 #include "Forward.hpp"
+#include "Heap.hpp"
 #include "HLSL.hpp"
 
 #include "Luft/FlagsEnum.hpp"
@@ -53,6 +54,12 @@ enum class ResourceFlags : uint8
 };
 FLAGS_ENUM(ResourceFlags);
 
+struct ResourceAllocation
+{
+	Heap Heap;
+	usize Offset;
+};
+
 struct ResourceDimensions
 {
 	uint32 Width;
@@ -66,6 +73,8 @@ struct ResourceDescription
 
 	ResourceFlags Flags;
 	BarrierLayout InitialLayout;
+
+	ResourceAllocation Allocation;
 
 	union
 	{
@@ -105,6 +114,17 @@ public:
 
 	RHI_BACKEND(Resource)* Backend;
 };
+
+inline ResourceDescription PlaceResource(const ResourceDescription& description, const Heap& heap, usize offset)
+{
+	ResourceDescription placed = description;
+	placed.Allocation = ResourceAllocation
+	{
+		.Heap = heap,
+		.Offset = offset,
+	};
+	return placed;
+}
 
 inline bool IsDepthFormat(ResourceFormat format)
 {

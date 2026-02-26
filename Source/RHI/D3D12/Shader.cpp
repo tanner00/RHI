@@ -284,8 +284,8 @@ Shader::Shader(const ShaderDescription& description, D3D12::Device* device)
 
 Shader::~Shader()
 {
-	Device->AddPendingDestroy(Blob);
-	Device->AddPendingDestroy(Reflection);
+	SAFE_RELEASE(Blob);
+	SAFE_RELEASE(Reflection);
 }
 
 }

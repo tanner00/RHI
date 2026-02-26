@@ -55,16 +55,14 @@ GraphicsContext::~GraphicsContext()
 #if !RELEASE
 	Device->Destroy(FrameTimeQueryResource);
 	FrameTimeQueryResource = nullptr;
-	Device->AddPendingDestroy(FrameTimeQueryHeap);
-	FrameTimeQueryHeap = nullptr;
+	SAFE_RELEASE(FrameTimeQueryHeap);
 #endif
 
 	SAFE_RELEASE(Native);
 
 	for (ID3D12CommandAllocator*& commandAllocator : CommandAllocators)
 	{
-		Device->AddPendingDestroy(commandAllocator);
-		commandAllocator = nullptr;
+		SAFE_RELEASE(commandAllocator);
 	}
 
 	CurrentPipeline = nullptr;
@@ -279,7 +277,7 @@ void GraphicsContext::Dispatch(uint32 threadGroupCountX, uint32 threadGroupCount
 
 void GraphicsContext::Copy(const Resource* destination, const Resource* source) const
 {
-	Native->CopyResource(destination->Native, source->Native);
+	destination->Copy(Native, source->Native);
 }
 
 void GraphicsContext::GlobalBarrier(BarrierPair<BarrierStage> stage, BarrierPair<BarrierAccess> access) const

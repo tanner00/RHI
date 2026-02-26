@@ -6,6 +6,7 @@
 #include "Forward.hpp"
 #include "GraphicsContext.hpp"
 #include "GraphicsPipeline.hpp"
+#include "Heap.hpp"
 #include "Resource.hpp"
 #include "Sampler.hpp"
 #include "Shader.hpp"
@@ -27,6 +28,7 @@ public:
 	ComputePipeline Create(const ComputePipelineDescription& description) const;
 	GraphicsContext Create(const GraphicsContextDescription& description) const;
 	GraphicsPipeline Create(const GraphicsPipelineDescription& description) const;
+	Heap Create(const HeapDescription& description) const;
 	Resource Create(const ResourceDescription& description) const;
 	Sampler Create(const SamplerDescription& description) const;
 	Shader Create(const ShaderDescription& description) const;
@@ -37,6 +39,7 @@ public:
 	void Destroy(ComputePipeline* computePipeline) const;
 	void Destroy(GraphicsContext* graphicsContext) const;
 	void Destroy(GraphicsPipeline* graphicsPipeline) const;
+	void Destroy(Heap* heap) const;
 	void Destroy(Resource* resource) const;
 	void Destroy(Sampler* sampler) const;
 	void Destroy(Shader* shader) const;
@@ -47,17 +50,19 @@ public:
 	uint32 Get(const Sampler& sampler) const;
 	uint32 Get(const TextureView& texture) const;
 
-	void Write(const Resource* resource, const void* data);
+	void Write(const Resource* write, const ResourceDescription& format, const void* data) const;
+	void Write(const Resource* write, const void* data) const { Write(write, *write, data); }
 
 	void Submit(const GraphicsContext& context) const;
 	void Present();
 	void WaitForIdle();
 
-	void ReleaseAllDestroys();
-
 	void ResizeSwapChain(uint32 width, uint32 height);
 
 	usize GetFrameIndex() const;
+
+	usize GetResourceSize(const ResourceDescription& description) const;
+	usize GetResourceAlignment(const ResourceDescription& description) const;
 
 	AccelerationStructureSize GetAccelerationStructureSize(const AccelerationStructureGeometry& geometry) const;
 	AccelerationStructureSize GetAccelerationStructureSize(const Buffer& instances) const;

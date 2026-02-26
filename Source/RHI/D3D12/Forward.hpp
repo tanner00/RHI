@@ -26,6 +26,7 @@ class ComputePipeline;
 class Device;
 class GraphicsContext;
 class GraphicsPipeline;
+class Heap;
 class Pipeline;
 class Resource;
 class Sampler;

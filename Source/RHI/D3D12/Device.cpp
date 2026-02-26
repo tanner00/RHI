@@ -6,6 +6,7 @@
 #include "Convert.hpp"
 #include "GraphicsContext.hpp"
 #include "GraphicsPipeline.hpp"
+#include "Heap.hpp"
 #include "Resource.hpp"
 #include "Sampler.hpp"
 #include "Shader.hpp"
@@ -32,8 +33,6 @@ static constexpr DXGI_FORMAT SwapChainFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 Device::Device(const Platform::Window* window)
 	: FrameFenceValues()
-	, PendingDestroys(Allocator)
-	, PendingUploads(Allocator)
 {
 	CHECK(window);
 
@@ -140,18 +139,6 @@ Device::Device(const Platform::Window* window)
 	CHECK_RESULT(Native->CreateFence(FrameFenceValues[0], D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&FrameFence)));
 	++FrameFenceValues[0];
 
-	static constexpr D3D12_COMMAND_LIST_TYPE type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	for (ID3D12CommandAllocator*& allocator : UploadCommandAllocators)
-	{
-		CHECK_RESULT(Native->CreateCommandAllocator(type, IID_PPV_ARGS(&allocator)));
-	}
-	CHECK_RESULT(Native->CreateCommandList1(0, type, D3D12_COMMAND_LIST_FLAG_NONE, IID_PPV_ARGS(&UploadCommandList)));
-
-	for (usize i = 0; i < FramesInFlight; ++i)
-	{
-		PendingDestroys.Add(Array<IUnknown*>(Allocator));
-	}
-
 	ConstantBufferShaderResourceUnorderedAccessViewHeap.Create(D3D12_MAX_SHADER_VISIBLE_DESCRIPTOR_HEAP_SIZE_TIER_1,
 															   D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 															   true,
@@ -167,24 +154,11 @@ Device::Device(const Platform::Window* window)
 
 Device::~Device()
 {
-	WaitForIdle();
-
-	ReleaseAllDestroys();
-	for (auto& [source, destination] : PendingUploads)
-	{
-		SAFE_RELEASE(source);
-	}
-
 	ConstantBufferShaderResourceUnorderedAccessViewHeap.Destroy();
 	RenderTargetViewHeap.Destroy();
 	DepthStencilViewHeap.Destroy();
 	SamplerViewHeap.Destroy();
 
-	SAFE_RELEASE(UploadCommandList);
-	for (ID3D12CommandAllocator* commandAllocator : UploadCommandAllocators)
-	{
-		SAFE_RELEASE(commandAllocator);
-	}
 	SAFE_RELEASE(FrameFence);
 	SAFE_RELEASE(SwapChain);
 	SAFE_RELEASE(GraphicsQueue);
@@ -222,6 +196,11 @@ GraphicsContext* Device::Create(const GraphicsContextDescription& description)
 GraphicsPipeline* Device::Create(const GraphicsPipelineDescription& description)
 {
 	return Allocator->Create<GraphicsPipeline>(description, this);
+}
+
+Heap* Device::Create(const HeapDescription& description)
+{
+	return Allocator->Create<Heap>(description, this);
 }
 
 Resource* Device::Create(const ResourceDescription& description)
@@ -269,6 +248,11 @@ void Device::Destroy(GraphicsPipeline* graphicsPipeline) const
 	Allocator->Destroy(graphicsPipeline);
 }
 
+void Device::Destroy(Heap* heap)
+{
+	Allocator->Destroy(heap);
+}
+
 void Device::Destroy(Resource* resource) const
 {
 	Allocator->Destroy(resource);
@@ -289,16 +273,13 @@ void Device::Destroy(TextureView* textureView) const
 	Allocator->Destroy(textureView);
 }
 
-void Device::Write(Resource* resource, const void* data)
+void Device::Write(Resource* write, const ResourceDescription& format, const void* data) const
 {
-	resource->Write(data, &PendingUploads);
+	write->Write(format, data);
 }
 
-void Device::Submit(const GraphicsContext* context)
+void Device::Submit(const GraphicsContext* context) const
 {
-	ReleaseFrameDestroys();
-	FlushUploads();
-
 	context->Execute(GraphicsQueue);
 }
 
@@ -331,18 +312,6 @@ void Device::WaitForIdle()
 	++FrameFenceValues[GetFrameIndex()];
 }
 
-void Device::ReleaseAllDestroys()
-{
-	for (Array<IUnknown*>& destroys : PendingDestroys)
-	{
-		for (IUnknown* resource : destroys)
-		{
-			SAFE_RELEASE(resource);
-		}
-		destroys.Clear();
-	}
-}
-
 void Device::ResizeSwapChain(uint32 width, uint32 height)
 {
 	CHECK_RESULT(SwapChain->ResizeBuffers(FramesInFlight, width, height, DXGI_FORMAT_UNKNOWN, 0));
@@ -359,6 +328,18 @@ void Device::ResizeSwapChain(uint32 width, uint32 height)
 usize Device::GetFrameIndex() const
 {
 	return SwapChain->GetCurrentBackBufferIndex();
+}
+
+usize Device::GetResourceSize(const ResourceDescription& description) const
+{
+	const D3D12_RESOURCE_DESC1 resourceDescription = To(description);
+	return Native->GetResourceAllocationInfo2(0, 1, &resourceDescription, nullptr).SizeInBytes;
+}
+
+usize Device::GetResourceAlignment(const ResourceDescription& description) const
+{
+	const D3D12_RESOURCE_DESC1 resourceDescription = To(description);
+	return Native->GetResourceAllocationInfo2(0, 1, &resourceDescription, nullptr).Alignment;
 }
 
 AccelerationStructureSize Device::GetAccelerationStructureSize(const AccelerationStructureGeometry& geometry) const
@@ -433,49 +414,11 @@ D3D12_GPU_DESCRIPTOR_HANDLE Device::GetGpu(usize index, ViewType type) const
 	return D3D12_GPU_DESCRIPTOR_HANDLE {};
 }
 
-void Device::AddPendingDestroy(IUnknown* pendingDestroy)
-{
-	if (pendingDestroy)
-	{
-		PendingDestroys[GetFrameIndex()].Add(pendingDestroy);
-	}
-}
-
 ID3D12Resource2* Device::GetSwapChainResource(usize backBufferIndex) const
 {
 	ID3D12Resource2* resource = nullptr;
 	CHECK_RESULT(SwapChain->GetBuffer(static_cast<uint32>(backBufferIndex), IID_PPV_ARGS(&resource)));
 	return resource;
-}
-
-void Device::FlushUploads()
-{
-	if (PendingUploads.IsEmpty())
-	{
-		return;
-	}
-
-	CHECK_RESULT(UploadCommandList->Reset(UploadCommandAllocators[GetFrameIndex()], nullptr));
-	for (const auto& [source, destination] : PendingUploads)
-	{
-		destination->Upload(UploadCommandList, source);
-		PendingDestroys[GetFrameIndex()].Add(source);
-	}
-	CHECK_RESULT(UploadCommandList->Close());
-
-	ID3D12CommandList* upload[] = { UploadCommandList };
-	GraphicsQueue->ExecuteCommandLists(ARRAY_COUNT(upload), upload);
-
-	PendingUploads.Clear();
-}
-
-void Device::ReleaseFrameDestroys()
-{
-	for (IUnknown* resource : PendingDestroys[GetFrameIndex()])
-	{
-		SAFE_RELEASE(resource);
-	}
-	PendingDestroys[GetFrameIndex()].Clear();
 }
 
 }

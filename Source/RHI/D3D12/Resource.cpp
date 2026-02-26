@@ -2,13 +2,21 @@
 #include "Base.hpp"
 #include "Convert.hpp"
 #include "Device.hpp"
-
-#include "Luft/Array.hpp"
+#include "Heap.hpp"
 
 namespace RHI::D3D12
 {
 
 static constexpr const DXGI_FORMAT* NoCastableFormats = nullptr;
+
+static constexpr D3D12_HEAP_PROPERTIES DefaultHeapProperties =
+{
+	.Type = D3D12_HEAP_TYPE_DEFAULT,
+	.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+	.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
+	.CreationNodeMask = 0,
+	.VisibleNodeMask = 0,
+};
 
 static constexpr D3D12_HEAP_PROPERTIES UploadHeapProperties =
 {
@@ -19,18 +27,9 @@ static constexpr D3D12_HEAP_PROPERTIES UploadHeapProperties =
 	.VisibleNodeMask = 0,
 };
 
-static constexpr D3D12_HEAP_PROPERTIES ReadbackHeapProperties =
+static constexpr D3D12_HEAP_PROPERTIES ReadBackHeapProperties =
 {
 	.Type = D3D12_HEAP_TYPE_READBACK,
-	.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
-	.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
-	.CreationNodeMask = 0,
-	.VisibleNodeMask = 0,
-};
-
-static constexpr D3D12_HEAP_PROPERTIES DefaultHeapProperties =
-{
-	.Type = D3D12_HEAP_TYPE_DEFAULT,
 	.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
 	.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
 	.CreationNodeMask = 0,
@@ -59,23 +58,38 @@ static ID3D12Resource2* AllocateResource(const Device* device, const ResourceDes
 								   ? &colorClear
 								   : (HasFlags(description.Flags, ResourceFlags::DepthStencil) ? &depthClear : nullptr);
 
-	const D3D12_HEAP_PROPERTIES *heapProperties = HasFlags(description.Flags, ResourceFlags::Upload)
-												? &UploadHeapProperties
-												: (HasFlags(description.Flags, ResourceFlags::ReadBack) ? &ReadbackHeapProperties
-																										: &DefaultHeapProperties);
-
 	ID3D12Resource2* resource = nullptr;
-	CHECK_RESULT(device->Native->CreateCommittedResource3(heapProperties,
-														  D3D12_HEAP_FLAG_NONE,
-														  &nativeDescription,
-														  To(description.InitialLayout),
-														  clear,
-														  nullptr,
-														  0,
-														  NoCastableFormats,
-														  IID_PPV_ARGS(&resource)));
+	if (description.Allocation.Heap.IsValid())
+	{
+		CHECK_RESULT(device->Native->CreatePlacedResource2(description.Allocation.Heap.Backend->Native,
+														   description.Allocation.Offset,
+														   &nativeDescription,
+														   To(description.InitialLayout),
+														   clear,
+														   0,
+														   NoCastableFormats,
+														   IID_PPV_ARGS(&resource)));
+	}
+	else
+	{
+		const D3D12_HEAP_PROPERTIES *heapProperties = HasFlags(description.Flags, ResourceFlags::Upload)
+													? &UploadHeapProperties
+													: (HasFlags(description.Flags, ResourceFlags::ReadBack) ? &ReadBackHeapProperties
+																											: &DefaultHeapProperties);
+
+		CHECK_RESULT(device->Native->CreateCommittedResource3(heapProperties,
+															  D3D12_HEAP_FLAG_NONE,
+															  &nativeDescription,
+															  To(description.InitialLayout),
+															  clear,
+															  nullptr,
+															  0,
+															  NoCastableFormats,
+															  IID_PPV_ARGS(&resource)));
+	}
 	CHECK(resource);
 	SET_D3D_NAME(resource, description.Name);
+
 	return resource;
 }
 
@@ -95,87 +109,59 @@ Resource::Resource(const ResourceDescription& description, D3D12::Device* device
 
 Resource::~Resource()
 {
-	Device->AddPendingDestroy(Native);
+	SAFE_RELEASE(Native);
 }
 
-void Resource::Write(const void* data, Array<UploadPair<ID3D12Resource2*, Resource*>>* pendingUploads)
+void Resource::Write(const ResourceDescription& format, const void* data)
 {
-	switch (Type)
+	CHECK(data);
+	CHECK(HasFlags(Flags, ResourceFlags::Upload));
+
+	switch (format.Type)
 	{
 	case ResourceType::Buffer:
-		WriteBuffer(data, pendingUploads);
+		WriteBuffer(format, data);
 		break;
 	case ResourceType::Texture2D:
-		WriteTexture(data, pendingUploads);
+		WriteTexture(format, data);
 		break;
 	case ResourceType::AccelerationStructureInstances:
-		WriteAccelerationStructureInstances(data);
+		WriteAccelerationStructureInstances(format, data);
 		break;
 	default:
 		CHECK(false);
 	}
 }
 
-void Resource::WriteBuffer(const void* data, Array<UploadPair<ID3D12Resource2*, Resource*>>* pendingUploads)
+void Resource::WriteBuffer(const ResourceDescription& format, const void* data)
 {
-	ID3D12Resource2* uploadResource = Native;
-
-	const bool streamed = HasFlags(Flags, ResourceFlags::Upload);
-	if (!streamed)
-	{
-		uploadResource = AllocateResource(Device,
-		{
-			.Type = ResourceType::Buffer,
-			.Flags = ResourceFlags::Upload,
-			.InitialLayout = BarrierLayout::Undefined,
-			.Size = Size,
-			.Name = "Upload Buffer"_view,
-		});
-	}
-
 	void* mapped = nullptr;
-	CHECK_RESULT(uploadResource->Map(0, &ReadNothing, &mapped));
-	Platform::MemoryCopy(mapped, data, Size);
-	uploadResource->Unmap(0, WriteEverything);
-
-	if (!streamed)
-	{
-		pendingUploads->Add({ uploadResource, this });
-	}
+	CHECK_RESULT(Native->Map(0, &ReadNothing, &mapped));
+	Platform::MemoryCopy(mapped, data, format.Size);
+	Native->Unmap(0, WriteEverything);
 }
 
-void Resource::WriteTexture(const void* data, Array<UploadPair<ID3D12Resource2*, Resource*>>* pendingUploads)
+void Resource::WriteTexture(const ResourceDescription& format, const void* data)
 {
-	CHECK(!HasFlags(Flags, ResourceFlags::Upload));
+	const D3D12_RESOURCE_DESC1 nativeDescription = To(format);
 
 	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(Allocator);
 	Array<uint32> rowCounts(Allocator);
 	Array<uint64> rowSizes(Allocator);
 
-	const uint16 count = MipMapCount != 0 ? MipMapCount : 1;
+	const uint16 count = format.MipMapCount != 0 ? format.MipMapCount : 1;
 	layouts.GrowToLengthUninitialized(count);
 	rowSizes.GrowToLengthUninitialized(count);
 	rowCounts.GrowToLengthUninitialized(count);
 
 	uint64 totalSize = 0;
-
-	const D3D12_RESOURCE_DESC1 resourceDescription = To(*this);
-	Device->Native->GetCopyableFootprints1(&resourceDescription, 0, count, 0, layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
-
-	ID3D12Resource2* uploadResource = AllocateResource(Device,
-	{
-		.Type = ResourceType::Buffer,
-		.Flags = ResourceFlags::Upload,
-		.InitialLayout = BarrierLayout::Undefined,
-		.Size = totalSize,
-		.Name = "Upload Texture"_view,
-	});
+	Device->Native->GetCopyableFootprints1(&nativeDescription, 0, count, 0, layouts.GetData(), rowCounts.GetData(), rowSizes.GetData(), &totalSize);
 
 	usize dataOffset = 0;
 
 	void* mapped = nullptr;
-	CHECK_RESULT(uploadResource->Map(0, &ReadNothing, &mapped));
-	for (uint16 mipMapIndex = 0; mipMapIndex < MipMapCount; ++mipMapIndex)
+	CHECK_RESULT(Native->Map(0, &ReadNothing, &mapped));
+	for (uint16 mipMapIndex = 0; mipMapIndex < format.MipMapCount; ++mipMapIndex)
 	{
 		const uint16 subresourceIndex = mipMapIndex;
 
@@ -195,23 +181,17 @@ void Resource::WriteTexture(const void* data, Array<UploadPair<ID3D12Resource2*,
 
 		dataOffset += rowSize * rowCount;
 	}
-	uploadResource->Unmap(0, WriteEverything);
-
-	pendingUploads->Add({ uploadResource, this });
+	Native->Unmap(0, WriteEverything);
 }
 
-void Resource::WriteAccelerationStructureInstances(const void* data)
+void Resource::WriteAccelerationStructureInstances(const ResourceDescription& format, const void* data)
 {
-	CHECK(HasFlags(Flags, ResourceFlags::Upload));
-
-	ID3D12Resource2* uploadResource = Native;
-
 	const usize stride = Device->GetAccelerationStructureInstanceSize();
-	const usize count = Size / stride;
-	CHECK((Size % stride) == 0);
+	const usize count = format.Size / stride;
+	CHECK((format.Size % stride) == 0);
 
 	void* mapped = nullptr;
-	CHECK_RESULT(uploadResource->Map(0, &ReadNothing, &mapped));
+	CHECK_RESULT(Native->Map(0, &ReadNothing, &mapped));
 	for (usize instanceIndex = 0; instanceIndex < count; ++instanceIndex)
 	{
 		const AccelerationStructureInstance* instances = static_cast<const AccelerationStructureInstance*>(data);
@@ -221,41 +201,41 @@ void Resource::WriteAccelerationStructureInstances(const void* data)
 
 		Platform::MemoryCopy(static_cast<uint8*>(mapped) + instanceIndex * stride, &instanceDescription, stride);
 	}
-	uploadResource->Unmap(0, WriteEverything);
+	Native->Unmap(0, WriteEverything);
 }
 
-void Resource::Upload(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const
+void Resource::Copy(ID3D12GraphicsCommandList10* commandList, ID3D12Resource2* source) const
 {
 	switch (Type)
 	{
 	case ResourceType::Buffer:
-		UploadBuffer(uploadCommandList, source);
+		CopyBuffer(commandList, source);
 		break;
 	case ResourceType::Texture2D:
-		UploadTexture(uploadCommandList, source);
+		CopyTexture(commandList, source);
 		break;
 	case ResourceType::AccelerationStructureInstances:
-		UploadAccelerationStructureInstances(uploadCommandList, source);
+		CopyAccelerationStructureInstances(commandList, source);
 		break;
 	default:
 		CHECK(false);
 	}
 }
 
-void Resource::UploadBuffer(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const
+void Resource::CopyBuffer(ID3D12GraphicsCommandList10* commandList, ID3D12Resource2* source) const
 {
-	uploadCommandList->CopyResource(Native, source);
+	commandList->CopyResource(Native, source);
 }
 
-void Resource::UploadTexture(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const
+void Resource::CopyTexture(ID3D12GraphicsCommandList10* commandList, ID3D12Resource2* source) const
 {
 	Array<D3D12_PLACED_SUBRESOURCE_FOOTPRINT> layouts(Allocator);
 
 	const uint16 count = MipMapCount != 0 ? MipMapCount : 1;
 	layouts.GrowToLengthUninitialized(count);
 
-	const D3D12_RESOURCE_DESC1 resourceDescription = To(*this);
-	Device->Native->GetCopyableFootprints1(&resourceDescription, 0, count, 0, layouts.GetData(), nullptr, nullptr, nullptr);
+	const D3D12_RESOURCE_DESC1 nativeDescription = To(*this);
+	Device->Native->GetCopyableFootprints1(&nativeDescription, 0, count, 0, layouts.GetData(), nullptr, nullptr, nullptr);
 
 	for (usize subresourceIndex = 0; subresourceIndex < count; ++subresourceIndex)
 	{
@@ -271,13 +251,13 @@ void Resource::UploadTexture(ID3D12GraphicsCommandList10* uploadCommandList, ID3
 			.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX,
 			.SubresourceIndex = static_cast<uint32>(subresourceIndex),
 		};
-		uploadCommandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
+		commandList->CopyTextureRegion(&destinationLocation, 0, 0, 0, &sourceLocation, nullptr);
 	}
 }
 
-void Resource::UploadAccelerationStructureInstances(ID3D12GraphicsCommandList10* uploadCommandList, ID3D12Resource2* source) const
+void Resource::CopyAccelerationStructureInstances(ID3D12GraphicsCommandList10* commandList, ID3D12Resource2* source) const
 {
-	uploadCommandList->CopyResource(Native, source);
+	commandList->CopyResource(Native, source);
 }
 
 }

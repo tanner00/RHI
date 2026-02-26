@@ -181,6 +181,25 @@ inline D3D12_RESOURCE_DESC1 To(const ResourceDescription& description)
 	};
 }
 
+inline D3D12_HEAP_DESC To(const HeapDescription& description)
+{
+	return D3D12_HEAP_DESC
+	{
+		.SizeInBytes = description.Size,
+		.Properties = D3D12_HEAP_PROPERTIES
+		{
+			.Type = description.Type == HeapType::Default ? D3D12_HEAP_TYPE_DEFAULT
+														  : (description.Type == HeapType::Upload ? D3D12_HEAP_TYPE_UPLOAD : D3D12_HEAP_TYPE_READBACK),
+			.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN,
+			.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN,
+			.CreationNodeMask = 0,
+			.VisibleNodeMask = 0,
+		},
+		.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT,
+		.Flags = D3D12_HEAP_FLAG_NONE,
+	};
+}
+
 inline D3D12_RAYTRACING_GEOMETRY_DESC To(const AccelerationStructureGeometry& geometry)
 {
 	CHECK(geometry.VertexBuffer.Stride == sizeof(float[3]));

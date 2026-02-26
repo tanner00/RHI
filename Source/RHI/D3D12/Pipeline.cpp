@@ -6,8 +6,8 @@ namespace RHI::D3D12
 
 Pipeline::~Pipeline()
 {
-	Device->AddPendingDestroy(RootSignature);
-	Device->AddPendingDestroy(PipelineState);
+	SAFE_RELEASE(RootSignature);
+	SAFE_RELEASE(PipelineState);
 }
 
 }

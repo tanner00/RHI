@@ -23,6 +23,8 @@ class GraphicsContext;
 struct GraphicsContextDescription;
 class GraphicsPipeline;
 struct GraphicsPipelineDescription;
+class Heap;
+struct HeapDescription;
 class Resource;
 struct ResourceDescription;
 class Sampler;
