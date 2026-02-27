@@ -308,7 +308,6 @@ void Device::WaitForIdle()
 		CHECK_RESULT(FrameFence->SetEventOnCompletion(fenceValue, nullptr));
 		WaitForSingleObjectEx(nullptr, INFINITE, false);
 	}
-
 	++FrameFenceValues[GetFrameIndex()];
 }
 

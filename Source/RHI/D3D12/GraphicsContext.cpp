@@ -35,8 +35,7 @@ GraphicsContext::GraphicsContext(const GraphicsContextDescription& description, 
 	};
 	CHECK_RESULT(Device->Native->CreateQueryHeap(&frameTimeQueryHeapDescription, IID_PPV_ARGS(&FrameTimeQueryHeap)));
 
-	const StringView frameTimeQueryHeapName = "Frame Time Query Heap"_view;
-	SET_D3D_NAME(FrameTimeQueryHeap, frameTimeQueryHeapName);
+	SET_D3D_NAME(FrameTimeQueryHeap, "Frame Time Query Heap"_view);
 
 	FrameTimeQueryResource = Device->Create(
 	{
